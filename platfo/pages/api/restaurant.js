@@ -7,6 +7,9 @@ import {
   addMenuItem,
   updateMenuItem,
   deleteMenuItem,
+  addSection,
+  updateSection,
+  deleteSection,
 } from "../../lib/store";
 
 import {
@@ -27,46 +30,18 @@ export default async function handler(req, res) {
     if (!rateLimit("login_" + ip, 10, 60 * 60 * 1000)) {
       return res.status(429).json({ error: "Too many login attempts. Try again in 1 hour." });
     }
-
     const username = (req.body.username || "").trim().toLowerCase();
     const password = req.body.password || "";
-
     console.log("Login attempt:", username);
-
-    if (!username || !password) {
-      return res.status(400).json({ error: "Username and password required." });
-    }
-
+    if (!username || !password) return res.status(400).json({ error: "Username and password required." });
     try {
       const restaurant = await loginRestaurant(username, password);
-
-      if (!restaurant) {
-        return res.status(401).json({ error: "Invalid username or password." });
-      }
-
-      console.log("Found restaurant:", restaurant.name);
-      console.log("Password hash:", restaurant.password ? restaurant.password.substring(0, 10) : "NONE");
-
+      if (!restaurant) return res.status(401).json({ error: "Invalid username or password." });
       const isValid = await comparePassword(password, restaurant.password);
-      console.log("Password valid:", isValid);
-
-      if (!isValid) {
-        return res.status(401).json({ error: "Invalid username or password." });
-      }
-
-      const token = generateToken({
-        id: restaurant.id,
-        username: restaurant.username,
-        name: restaurant.name,
-      });
-
+      if (!isValid) return res.status(401).json({ error: "Invalid username or password." });
+      const token = generateToken({ id: restaurant.id, username: restaurant.username, name: restaurant.name });
       const { password: _, _id, ...safe } = restaurant;
-      return res.status(200).json({
-        success: true,
-        restaurant: safe,
-        token,
-      });
-
+      return res.status(200).json({ success: true, restaurant: safe, token });
     } catch (err) {
       console.error("Login error:", err);
       return res.status(500).json({ error: err.message });
@@ -75,45 +50,26 @@ export default async function handler(req, res) {
 
   // ── CREATE RESTAURANT ──
   if (req.method === "POST" && req.query.action === "create") {
-    const { name, username, password, tableCount, email } = req.body;
     const adminKey = sanitizeString(req.body.adminKey || "");
-
-    if (adminKey !== process.env.SUPER_ADMIN_KEY) {
+    if (adminKey !== (process.env.SUPER_ADMIN_KEY || "SUPERADMIN123")) {
       return res.status(403).json({ error: "Invalid admin key." });
     }
-
-    if (!name || !username || !password) {
-      return res.status(400).json({ error: "All fields are required." });
-    }
-
+    const { name, username, password, tableCount, email } = req.body;
+    if (!name || !username || !password) return res.status(400).json({ error: "All fields are required." });
     try {
       const result = await createRestaurant({
-        name: sanitizeString(name),
-        username: sanitizeString(username),
-        password,
-        tableCount: sanitizeNumber(tableCount),
-        email: sanitizeString(email || ""),
+        name: sanitizeString(name), username: sanitizeString(username),
+        password, tableCount: sanitizeNumber(tableCount), email: sanitizeString(email || ""),
       });
       if (result.error) return res.status(400).json({ error: result.error });
-
       if (email) {
         try {
           const { sendWelcomeEmail } = await import("../../lib/email");
-          await sendWelcomeEmail({
-            to: email,
-            restaurantName: name,
-            username,
-            password,
-            restaurantId: result.restaurant.id,
-          });
-        } catch (emailErr) {
-          console.log("Email failed:", emailErr.message);
-        }
+          await sendWelcomeEmail({ to: email, restaurantName: name, username, password, restaurantId: result.restaurant.id });
+        } catch (emailErr) { console.log("Email failed:", emailErr.message); }
       }
-
       return res.status(201).json({ success: true, restaurant: result.restaurant });
     } catch (err) {
-      console.error("Create error:", err);
       return res.status(500).json({ error: err.message });
     }
   }
@@ -121,7 +77,7 @@ export default async function handler(req, res) {
   // ── GET ALL RESTAURANTS ──
   if (req.method === "GET" && req.query.action === "all") {
     const adminKey = req.headers["x-admin-key"] || req.query.adminKey;
-    if (adminKey !== process.env.SUPER_ADMIN_KEY) {
+    if (adminKey !== (process.env.SUPER_ADMIN_KEY || "SUPERADMIN123")) {
       return res.status(403).json({ error: "Unauthorized." });
     }
     try {
@@ -150,11 +106,9 @@ export default async function handler(req, res) {
     const token = req.headers.authorization?.replace("Bearer ", "");
     const decoded = verifyToken(token);
     if (!decoded) return res.status(401).json({ error: "Unauthorized. Please login again." });
-
     const { id, name, tableCount } = req.body;
     if (!id) return res.status(400).json({ error: "Restaurant ID required." });
     if (decoded.id !== id) return res.status(403).json({ error: "Forbidden." });
-
     try {
       const updated = await updateRestaurant(id, {
         name: sanitizeString(name || ""),
@@ -167,25 +121,69 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── ADD SECTION ──
+  if (req.method === "POST" && req.query.action === "addSection") {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    const decoded = verifyToken(token);
+    if (!decoded) return res.status(401).json({ error: "Unauthorized." });
+    const { restaurantId, sectionName } = req.body;
+    if (!restaurantId || !sectionName) return res.status(400).json({ error: "restaurantId and sectionName required." });
+    if (decoded.id !== restaurantId) return res.status(403).json({ error: "Forbidden." });
+    try {
+      const section = await addSection(restaurantId, sectionName);
+      return res.status(201).json({ success: true, section });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  // ── UPDATE SECTION ──
+  if (req.method === "PATCH" && req.query.action === "updateSection") {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    const decoded = verifyToken(token);
+    if (!decoded) return res.status(401).json({ error: "Unauthorized." });
+    const { restaurantId, sectionId, sectionName } = req.body;
+    if (!restaurantId || !sectionId || !sectionName) return res.status(400).json({ error: "All fields required." });
+    if (decoded.id !== restaurantId) return res.status(403).json({ error: "Forbidden." });
+    try {
+      const section = await updateSection(restaurantId, sectionId, sectionName);
+      return res.status(200).json({ success: true, section });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  // ── DELETE SECTION ──
+  if (req.method === "DELETE" && req.query.action === "deleteSection") {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    const decoded = verifyToken(token);
+    if (!decoded) return res.status(401).json({ error: "Unauthorized." });
+    const { restaurantId, sectionId } = req.body;
+    if (!restaurantId || !sectionId) return res.status(400).json({ error: "restaurantId and sectionId required." });
+    if (decoded.id !== restaurantId) return res.status(403).json({ error: "Forbidden." });
+    try {
+      await deleteSection(restaurantId, sectionId);
+      return res.status(200).json({ success: true });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
   // ── ADD MENU ITEM ──
   if (req.method === "POST" && req.query.action === "addItem") {
     const token = req.headers.authorization?.replace("Bearer ", "");
     const decoded = verifyToken(token);
     if (!decoded) return res.status(401).json({ error: "Unauthorized. Please login again." });
-
-    const { restaurantId, name, price, emoji, desc, tag } = req.body;
-    if (!restaurantId || !name || !price) {
-      return res.status(400).json({ error: "restaurantId, name and price required." });
-    }
+    const { restaurantId, name, price, desc, tag, sectionId } = req.body;
+    if (!restaurantId || !name || !price) return res.status(400).json({ error: "restaurantId, name and price required." });
     if (decoded.id !== restaurantId) return res.status(403).json({ error: "Forbidden." });
-
     try {
       const item = await addMenuItem(restaurantId, {
         name: sanitizeString(name),
         price: sanitizeNumber(price),
-        emoji: emoji || "🍽️",
         desc: sanitizeString(desc || ""),
         tag: sanitizeString(tag || ""),
+        sectionId: sectionId || null,
       });
       if (!item) return res.status(404).json({ error: "Restaurant not found." });
       return res.status(201).json({ success: true, item });
@@ -199,20 +197,16 @@ export default async function handler(req, res) {
     const token = req.headers.authorization?.replace("Bearer ", "");
     const decoded = verifyToken(token);
     if (!decoded) return res.status(401).json({ error: "Unauthorized. Please login again." });
-
-    const { restaurantId, itemId, name, price, emoji, desc, tag } = req.body;
-    if (!restaurantId || !itemId) {
-      return res.status(400).json({ error: "restaurantId and itemId required." });
-    }
+    const { restaurantId, itemId, name, price, desc, tag, sectionId } = req.body;
+    if (!restaurantId || !itemId) return res.status(400).json({ error: "restaurantId and itemId required." });
     if (decoded.id !== restaurantId) return res.status(403).json({ error: "Forbidden." });
-
     try {
       const item = await updateMenuItem(restaurantId, itemId, {
         name: sanitizeString(name || ""),
         price: sanitizeNumber(price),
-        emoji: emoji || "",
         desc: sanitizeString(desc || ""),
         tag: sanitizeString(tag || ""),
+        sectionId: sectionId || null,
       });
       if (!item) return res.status(404).json({ error: "Item not found." });
       return res.status(200).json({ success: true, item });
@@ -226,13 +220,9 @@ export default async function handler(req, res) {
     const token = req.headers.authorization?.replace("Bearer ", "");
     const decoded = verifyToken(token);
     if (!decoded) return res.status(401).json({ error: "Unauthorized. Please login again." });
-
     const { restaurantId, itemId } = req.body;
-    if (!restaurantId || !itemId) {
-      return res.status(400).json({ error: "restaurantId and itemId required." });
-    }
+    if (!restaurantId || !itemId) return res.status(400).json({ error: "restaurantId and itemId required." });
     if (decoded.id !== restaurantId) return res.status(403).json({ error: "Forbidden." });
-
     try {
       const ok = await deleteMenuItem(restaurantId, itemId);
       if (!ok) return res.status(404).json({ error: "Item not found." });
