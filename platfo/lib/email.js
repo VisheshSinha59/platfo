@@ -1,10 +1,13 @@
 import nodemailer from "nodemailer";
 
+const GMAIL_USER = process.env.GMAIL_USER || "visheshsinha59@gmail.com";
+const GMAIL_PASS = process.env.GMAIL_PASS || "rdskgkydnznjtppy";
+
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS,
+    user: GMAIL_USER,
+    pass: GMAIL_PASS,
   },
 });
 
@@ -51,7 +54,7 @@ export async function sendVerificationEmail({ to, restaurantName, username, veri
 
   try {
     await transporter.sendMail({
-      from: '"Platfo POS" <' + process.env.GMAIL_USER + '>',
+      from: '"Platfo POS" <' + GMAIL_USER + '>',
       to,
       subject: "Verify your email - Welcome to Platfo!",
       html,
@@ -116,7 +119,7 @@ export async function sendWelcomeEmail({ to, restaurantName, username, password,
 
   try {
     await transporter.sendMail({
-      from: '"Platfo POS" <' + process.env.GMAIL_USER + '>',
+      from: '"Platfo POS" <' + GMAIL_USER + '>',
       to,
       subject: "Welcome to Platfo - Your Account is Active!",
       html,
@@ -163,7 +166,7 @@ export async function sendResetEmail({ to, restaurantName, resetUrl }) {
 
   try {
     await transporter.sendMail({
-      from: '"Platfo POS" <' + process.env.GMAIL_USER + '>',
+      from: '"Platfo POS" <' + GMAIL_USER + '>',
       to,
       subject: "Reset Your Platfo Password",
       html,
@@ -175,3 +178,4 @@ export async function sendResetEmail({ to, restaurantName, resetUrl }) {
     return { success: false, error: error.message };
   }
 }
+
