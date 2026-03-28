@@ -3,8 +3,8 @@ import nodemailer from "nodemailer";
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: "visheshsinha59@gmail.com",
-    pass: "rdskgkydnznjtppy",
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS,
   },
 });
 
@@ -51,7 +51,7 @@ export async function sendVerificationEmail({ to, restaurantName, username, veri
 
   try {
     await transporter.sendMail({
-      from: '"Platfo POS" <visheshsinha59@gmail.com>',
+      from: '"Platfo POS" <' + process.env.GMAIL_USER + '>',
       to,
       subject: "Verify your email - Welcome to Platfo!",
       html,
@@ -116,7 +116,7 @@ export async function sendWelcomeEmail({ to, restaurantName, username, password,
 
   try {
     await transporter.sendMail({
-      from: '"Platfo POS" <visheshsinha59@gmail.com>',
+      from: '"Platfo POS" <' + process.env.GMAIL_USER + '>',
       to,
       subject: "Welcome to Platfo - Your Account is Active!",
       html,
@@ -163,7 +163,7 @@ export async function sendResetEmail({ to, restaurantName, resetUrl }) {
 
   try {
     await transporter.sendMail({
-      from: '"Platfo POS" <visheshsinha59@gmail.com>',
+      from: '"Platfo POS" <' + process.env.GMAIL_USER + '>',
       to,
       subject: "Reset Your Platfo Password",
       html,
