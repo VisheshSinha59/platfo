@@ -1,6 +1,7 @@
-﻿import { MongoClient } from "mongodb";
+import { MongoClient } from "mongodb";
 
-const uri = process.env.MONGODB_URI || "mongodb://mongo:yUosfOqgWSSFOQZlfCWCrAyMeEdKOSAa@crossover.proxy.rlwy.net:18080";
+const uri = process.env.MONGODB_URI;
+if (!uri) throw new Error("Please add MONGODB_URI to .env.local");
 
 const options = {
   maxPoolSize: 10,
@@ -27,3 +28,4 @@ if (!global._mongoClientPromise) {
 
 clientPromise = global._mongoClientPromise;
 export default clientPromise;
+
