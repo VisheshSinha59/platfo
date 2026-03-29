@@ -58,14 +58,13 @@ export default function AdminDashboard() {
   const [settingSaved, setSettingSaved] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [newOrderAlert, setNewOrderAlert] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
-  // Section states
   const [showAddSection, setShowAddSection] = useState(false);
   const [newSectionName, setNewSectionName] = useState("");
   const [editSection, setEditSection] = useState(null);
   const [activeSectionId, setActiveSectionId] = useState(null);
 
-  // Item states
   const [showAddItem, setShowAddItem] = useState(false);
   const [newItem, setNewItem] = useState({ name: "", price: "", desc: "", tag: "", sectionId: "" });
   const [editItem, setEditItem] = useState(null);
@@ -95,16 +94,22 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       const newOrders = data.orders || [];
+      setLastUpdated(new Date());
       if (silent) {
         setOrders((prev) => {
           const prevIds = new Set(prev.map((o) => o.id));
           const brandNew = newOrders.filter((o) => !prevIds.has(o.id));
           if (brandNew.length > 0) {
             setNewOrderAlert(true);
-            setTimeout(() => setNewOrderAlert(false), 4000);
+            setTimeout(() => setNewOrderAlert(false), 5000);
             return [...brandNew, ...prev];
           }
-          return prev;
+          // Also update statuses from server
+          return prev.map((prevOrder) => {
+            const updated = newOrders.find((o) => o.id === prevOrder.id);
+            if (updated && updated.status !== prevOrder.status) return { ...prevOrder, status: updated.status };
+            return prevOrder;
+          });
         });
       } else {
         setOrders(newOrders);
@@ -121,7 +126,7 @@ export default function AdminDashboard() {
       fetchOrders("", "");
       const interval = setInterval(() => {
         fetchOrders(startDate, endDate, true);
-      }, 10000);
+      }, 5000);
       return () => clearInterval(interval);
     }
   }, [restaurantId]);
@@ -308,10 +313,10 @@ export default function AdminDashboard() {
         input:focus { border-color: rgba(255,48,8,0.5) !important; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
         .fade-in { animation: fadeIn 0.3s ease; }
         .nav-btn:hover { background: rgba(255,255,255,0.06) !important; color: #fff !important; }
-        @media (max-width: 768px) { .sidebar { display: none; } .main-content { margin-left: 0 !important; } }
+        @media (max-width: 768px) { .sidebar { display: none !important; } }
       `}</style>
 
       <div style={{ display: "flex", minHeight: "100vh", background: "#0F0F0F" }}>
@@ -331,7 +336,7 @@ export default function AdminDashboard() {
 
           {sidebarOpen && (
             <div style={{ padding: "14px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-              <div style={{ fontSize: "0.7rem", color: "#666", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>{"Restaurant"}</div>
+              <div style={{ fontSize: "0.7rem", color: "#555", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>{"Restaurant"}</div>
               <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{restaurant.name}</div>
             </div>
           )}
@@ -391,8 +396,17 @@ export default function AdminDashboard() {
                   {"🔔 New order received!"}
                 </div>
               )}
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.15)", borderRadius: "8px", padding: "6px 12px" }}>
+                <div style={{ width: "6px", height: "6px", background: "#4ADE80", borderRadius: "50%", animation: "pulse 2s infinite" }} />
+                <span style={{ fontSize: "0.72rem", color: "#4ADE80", fontWeight: 600 }}>{"Live · 5s"}</span>
+              </div>
+              {lastUpdated && (
+                <div style={{ fontSize: "0.7rem", color: "#444" }}>
+                  {lastUpdated.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                </div>
+              )}
               <div style={{ background: counts["New"] > 0 ? "rgba(255,48,8,0.1)" : "rgba(255,255,255,0.04)", border: counts["New"] > 0 ? "1px solid rgba(255,48,8,0.2)" : "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", padding: "6px 12px", fontSize: "0.78rem", color: counts["New"] > 0 ? "#FF3008" : "#555", fontWeight: 600 }}>
-                {counts["New"] > 0 ? counts["New"] + " New Orders 🔥" : "No New Orders"}
+                {counts["New"] > 0 ? counts["New"] + " New 🔥" : "No New Orders"}
               </div>
             </div>
           </div>
@@ -435,17 +449,13 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", gap: "4px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "14px" }}>
+                  <div style={{ display: "flex", gap: "4px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "14px", flexWrap: "wrap" }}>
                     {statusTabs.map((t) => (
                       <button key={t} onClick={() => setStatusFilter(t)} style={{ padding: "6px 14px", border: "none", background: statusFilter === t ? "rgba(255,48,8,0.15)" : "transparent", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600, color: statusFilter === t ? "#FF3008" : "#555", borderRadius: "8px", fontFamily: "sans-serif", display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s" }}>
                         {t}
                         {t !== "All" && counts[t] > 0 && <span style={{ background: "#FF3008", color: "#fff", fontSize: "0.65rem", padding: "1px 5px", borderRadius: "6px" }}>{counts[t]}</span>}
                       </button>
                     ))}
-                    <div style={{ marginLeft: "auto", fontSize: "0.72rem", color: "#444", display: "flex", alignItems: "center", gap: "4px" }}>
-                      <div style={{ width: "6px", height: "6px", background: "#4ADE80", borderRadius: "50%", animation: "pulse 2s infinite" }} />
-                      {"Auto-refresh every 10s"}
-                    </div>
                   </div>
                 </div>
 
