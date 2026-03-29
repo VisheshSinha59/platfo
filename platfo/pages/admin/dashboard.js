@@ -1,18 +1,20 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 
 const STATUS_FLOW = ["New", "Preparing", "Ready", "Delivered"];
 const STATUS_COLOR = {
-  New:       { bg: "rgba(255,193,7,0.1)", text: "#FFC107", dot: "#FFC107", border: "rgba(255,193,7,0.2)" },
-  Preparing: { bg: "rgba(99,102,241,0.1)", text: "#818CF8", dot: "#818CF8", border: "rgba(99,102,241,0.2)" },
-  Ready:     { bg: "rgba(16,185,129,0.1)", text: "#10B981", dot: "#10B981", border: "rgba(16,185,129,0.2)" },
-  Delivered: { bg: "rgba(107,114,128,0.1)", text: "#6B7280", dot: "#6B7280", border: "rgba(107,114,128,0.2)" },
+  New:       { bg: "rgba(255,193,7,0.15)", text: "#FFC107", dot: "#FFC107" },
+  Preparing: { bg: "rgba(99,102,241,0.15)", text: "#818CF8", dot: "#818CF8" },
+  Ready:     { bg: "rgba(34,197,94,0.15)", text: "#4ADE80", dot: "#4ADE80" },
+  Delivered: { bg: "rgba(148,163,184,0.15)", text: "#94A3B8", dot: "#94A3B8" },
 };
 
 function getISTDate(offsetDays) {
   const now = new Date();
-  const istDate = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const istDate = new Date(now.getTime() + istOffset);
   istDate.setDate(istDate.getDate() + offsetDays);
   return istDate.toISOString().split("T")[0];
 }
@@ -25,7 +27,17 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-const getToken = () => typeof window !== "undefined" ? localStorage.getItem("token") : null;
+const getToken = () => {
+  if (typeof window !== "undefined") return localStorage.getItem("token");
+  return null;
+};
+
+const NAV_ITEMS = [
+  { id: "orders", icon: "⚡", label: "Orders" },
+  { id: "menu", icon: "🍽️", label: "Menu" },
+  { id: "settings", icon: "⚙️", label: "Settings" },
+  { id: "qrcodes", icon: "📱", label: "QR Codes" },
+];
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -45,15 +57,19 @@ export default function AdminDashboard() {
   const [settingName, setSettingName] = useState("");
   const [settingTables, setSettingTables] = useState("");
   const [settingSaved, setSettingSaved] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Section states
   const [showAddSection, setShowAddSection] = useState(false);
   const [newSectionName, setNewSectionName] = useState("");
   const [editSection, setEditSection] = useState(null);
   const [activeSectionId, setActiveSectionId] = useState(null);
+
+  // Item states
   const [showAddItem, setShowAddItem] = useState(false);
   const [newItem, setNewItem] = useState({ name: "", price: "", desc: "", tag: "", sectionId: "" });
   const [editItem, setEditItem] = useState(null);
   const [itemError, setItemError] = useState("");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("restaurant");
@@ -81,7 +97,9 @@ export default function AdminDashboard() {
     finally { setLoadingOrders(false); }
   }, [restaurantId]);
 
-  useEffect(() => { if (restaurantId) fetchOrders("", ""); }, [restaurantId]);
+  useEffect(() => {
+    if (restaurantId) fetchOrders("", "");
+  }, [restaurantId]);
 
   const refreshRestaurant = useCallback(async () => {
     if (!restaurantId) return;
@@ -105,8 +123,8 @@ export default function AdminDashboard() {
     else if (type === "yesterday") { const d = getISTDate(-1); setStartDate(d); setEndDate(d); fetchOrders(d, d); }
     else if (type === "week") { const s = getISTDate(-7); const e = getISTDate(0); setStartDate(s); setEndDate(e); fetchOrders(s, e); }
     else if (type === "month") {
-      const now = new Date(); const ist = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
-      const first = new Date(ist.getFullYear(), ist.getMonth(), 1).toISOString().split("T")[0];
+      const now = new Date(); const istDate = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+      const first = new Date(istDate.getFullYear(), istDate.getMonth(), 1).toISOString().split("T")[0];
       const today = getISTDate(0); setStartDate(first); setEndDate(today); fetchOrders(first, today);
     } else { setStartDate(""); setEndDate(""); fetchOrders("", ""); }
   };
@@ -172,7 +190,7 @@ export default function AdminDashboard() {
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getToken() },
         body: JSON.stringify({ restaurantId, ...newItem }),
       });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Failed."); }
+      if (!res.ok) { const data = await res.json(); throw new Error(data.error || "Failed."); }
       await refreshRestaurant();
       setNewItem({ name: "", price: "", desc: "", tag: "", sectionId: activeSectionId || "" });
       setShowAddItem(false);
@@ -222,13 +240,17 @@ export default function AdminDashboard() {
     } catch {}
   };
 
-  const logout = () => { localStorage.removeItem("restaurant"); localStorage.removeItem("token"); router.push("/admin"); };
+  const logout = () => {
+    localStorage.removeItem("restaurant");
+    localStorage.removeItem("token");
+    router.push("/admin");
+  };
 
   if (!restaurant) return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0A0A0A", color: "#fff", fontFamily: "sans-serif" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0F0F0F", color: "#fff", fontFamily: "sans-serif" }}>
       <div style={{ textAlign: "center" }}>
-        <div style={{ width: "40px", height: "40px", border: "3px solid #FF3008", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 16px" }}></div>
-        <p style={{ color: "#555" }}>{"Loading..."}</p>
+        <div style={{ fontSize: "2rem", marginBottom: "12px" }}>{"⚡"}</div>
+        <p>{"Loading..."}</p>
       </div>
     </div>
   );
@@ -241,1001 +263,176 @@ export default function AdminDashboard() {
   const sectionItems = (sId) => menu.filter((item) => item.sectionId === Number(sId));
   const unsectionedItems = menu.filter((item) => !item.sectionId);
 
-  const inp = { width: "100%", padding: "12px 16px", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.08)", background: "#1A1A1A", color: "#fff", fontSize: "0.9rem", outline: "none", fontFamily: "sans-serif", boxSizing: "border-box", marginTop: "4px" };
-
-  const navItems = [
-    { key: "orders", icon: "◈", label: "Orders" },
-    { key: "menu", icon: "◉", label: "Menu" },
-    { key: "settings", icon: "◎", label: "Settings" },
-    { key: "qrcodes", icon: "⊞", label: "QR Codes" },
-  ];
+  const inputStyle = {
+    width: "100%", padding: "11px 14px", borderRadius: "10px",
+    border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)",
+    color: "#fff", fontSize: "0.9rem", outline: "none",
+    fontFamily: "sans-serif", marginTop: "4px", boxSizing: "border-box",
+    transition: "border 0.2s",
+  };
 
   return (
     <>
-      <Head>
-        <title>{restaurant.name + " — Platfo"}</title>
-        <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
-      </Head>
-
+      <Head><title>{restaurant.name + " — Platfo"}</title></Head>
       <style>{`
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'DM Sans', sans-serif; background: #0A0A0A; color: #fff; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        body { font-family: 'Segoe UI', sans-serif; background: #0F0F0F; color: #fff; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        input::placeholder { color: rgba(255,255,255,0.3); }
+        input:focus { border-color: rgba(255,48,8,0.5) !important; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: #111; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
-
-        .dashboard { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
-
-        /* SIDEBAR */
-        .sidebar {
-          background: #111;
-          border-right: 1px solid rgba(255,255,255,0.05);
-          display: flex;
-          flex-direction: column;
-          padding: 24px 16px;
-          position: fixed;
-          top: 0; left: 0; bottom: 0;
-          width: 240px;
-          z-index: 50;
-          transition: transform 0.3s;
-        }
-
-        .sidebar-brand {
-          font-family: 'Syne', sans-serif;
-          font-size: 1.4rem;
-          font-weight: 800;
-          color: #fff;
-          letter-spacing: -0.5px;
-          padding: 8px 12px 24px;
-          border-bottom: 1px solid rgba(255,255,255,0.05);
-          margin-bottom: 16px;
-        }
-
-        .sidebar-brand span { color: #FF3008; }
-
-        .restaurant-info {
-          padding: 12px;
-          background: rgba(255,255,255,0.03);
-          border-radius: 12px;
-          margin-bottom: 24px;
-          border: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .restaurant-name {
-          font-weight: 600;
-          font-size: 0.9rem;
-          color: #fff;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .restaurant-id {
-          font-size: 0.72rem;
-          color: #444;
-          margin-top: 2px;
-        }
-
-        .nav-section-label {
-          font-size: 0.65rem;
-          text-transform: uppercase;
-          letter-spacing: 2px;
-          color: #333;
-          padding: 0 12px;
-          margin-bottom: 8px;
-        }
-
-        .nav-item {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 11px 12px;
-          border-radius: 10px;
-          cursor: pointer;
-          border: none;
-          background: none;
-          width: 100%;
-          text-align: left;
-          color: #555;
-          font-family: 'DM Sans', sans-serif;
-          font-size: 0.88rem;
-          font-weight: 500;
-          transition: all 0.2s;
-          margin-bottom: 2px;
-        }
-
-        .nav-item:hover { background: rgba(255,255,255,0.04); color: #888; }
-        .nav-item.active { background: rgba(255,48,8,0.1); color: #FF3008; }
-        .nav-item.active .nav-icon { color: #FF3008; }
-
-        .nav-icon { font-size: 1rem; width: 20px; text-align: center; }
-
-        .sidebar-bottom {
-          margin-top: auto;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .sidebar-link {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 10px 12px;
-          border-radius: 10px;
-          font-size: 0.82rem;
-          color: #444;
-          text-decoration: none;
-          transition: all 0.2s;
-          cursor: pointer;
-          border: none;
-          background: none;
-          width: 100%;
-          font-family: 'DM Sans', sans-serif;
-        }
-
-        .sidebar-link:hover { background: rgba(255,255,255,0.04); color: #888; }
-
-        .logout-btn {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 10px 12px;
-          border-radius: 10px;
-          font-size: 0.82rem;
-          color: #444;
-          cursor: pointer;
-          border: none;
-          background: none;
-          width: 100%;
-          font-family: 'DM Sans', sans-serif;
-          transition: all 0.2s;
-        }
-
-        .logout-btn:hover { background: rgba(255,48,8,0.08); color: #FF3008; }
-
-        /* MAIN */
-        .main { margin-left: 240px; min-height: 100vh; }
-
-        /* TOP BAR */
-        .topbar {
-          padding: 20px 32px;
-          border-bottom: 1px solid rgba(255,255,255,0.05);
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          background: #0A0A0A;
-          position: sticky;
-          top: 0;
-          z-index: 40;
-        }
-
-        .topbar-title {
-          font-family: 'Syne', sans-serif;
-          font-size: 1.3rem;
-          font-weight: 800;
-          color: #fff;
-          letter-spacing: -0.5px;
-        }
-
-        .topbar-actions { display: flex; gap: 10px; align-items: center; }
-
-        .topbar-btn {
-          padding: 9px 18px;
-          border-radius: 9px;
-          font-size: 0.82rem;
-          font-weight: 500;
-          cursor: pointer;
-          font-family: 'DM Sans', sans-serif;
-          border: 1px solid rgba(255,255,255,0.08);
-          background: rgba(255,255,255,0.04);
-          color: #888;
-          text-decoration: none;
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          transition: all 0.2s;
-        }
-
-        .topbar-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
-        .topbar-btn.primary { background: #FF3008; color: #fff; border-color: #FF3008; }
-        .topbar-btn.primary:hover { background: #CC2000; }
-
-        /* CONTENT */
-        .content { padding: 32px; }
-
-        /* STAT CARDS */
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 16px;
-          margin-bottom: 28px;
-        }
-
-        .stat-card {
-          background: #111;
-          border: 1px solid rgba(255,255,255,0.05);
-          border-radius: 16px;
-          padding: 20px 24px;
-          transition: all 0.2s;
-          animation: fadeIn 0.4s ease both;
-        }
-
-        .stat-card:hover { border-color: rgba(255,48,8,0.2); transform: translateY(-2px); }
-
-        .stat-label {
-          font-size: 0.72rem;
-          text-transform: uppercase;
-          letter-spacing: 1.5px;
-          color: #444;
-          margin-bottom: 10px;
-        }
-
-        .stat-value {
-          font-family: 'Syne', sans-serif;
-          font-size: 2rem;
-          font-weight: 800;
-          color: #fff;
-        }
-
-        .stat-value.red { color: #FF3008; }
-
-        .stat-change {
-          font-size: 0.75rem;
-          color: #333;
-          margin-top: 6px;
-        }
-
-        /* FILTER BAR */
-        .filter-bar {
-          background: #111;
-          border: 1px solid rgba(255,255,255,0.05);
-          border-radius: 16px;
-          padding: 20px 24px;
-          margin-bottom: 20px;
-        }
-
-        .filter-bar-title {
-          font-size: 0.72rem;
-          text-transform: uppercase;
-          letter-spacing: 1.5px;
-          color: #444;
-          margin-bottom: 14px;
-        }
-
-        .date-btns {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-          margin-bottom: 16px;
-        }
-
-        .date-btn {
-          padding: 8px 16px;
-          border-radius: 8px;
-          font-size: 0.8rem;
-          font-weight: 500;
-          cursor: pointer;
-          font-family: 'DM Sans', sans-serif;
-          border: 1px solid rgba(255,255,255,0.06);
-          background: rgba(255,255,255,0.03);
-          color: #555;
-          transition: all 0.2s;
-        }
-
-        .date-btn:hover { color: #888; border-color: rgba(255,255,255,0.1); }
-        .date-btn.active { background: rgba(255,48,8,0.1); color: #FF3008; border-color: rgba(255,48,8,0.3); }
-
-        .date-inputs {
-          display: flex;
-          gap: 12px;
-          align-items: flex-end;
-          flex-wrap: wrap;
-        }
-
-        .date-input-group label {
-          display: block;
-          font-size: 0.72rem;
-          color: #444;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          margin-bottom: 6px;
-        }
-
-        .date-input {
-          padding: 10px 14px;
-          border-radius: 9px;
-          border: 1px solid rgba(255,255,255,0.06);
-          background: rgba(255,255,255,0.03);
-          color: #fff;
-          font-size: 0.85rem;
-          outline: none;
-          font-family: 'DM Sans', sans-serif;
-        }
-
-        .search-btn {
-          padding: 10px 20px;
-          background: #FF3008;
-          color: #fff;
-          border: none;
-          border-radius: 9px;
-          font-size: 0.85rem;
-          font-weight: 500;
-          cursor: pointer;
-          font-family: 'DM Sans', sans-serif;
-          transition: all 0.2s;
-        }
-
-        .search-btn:hover { background: #CC2000; }
-
-        /* STATUS TABS */
-        .status-tabs {
-          display: flex;
-          gap: 4px;
-          background: #111;
-          border: 1px solid rgba(255,255,255,0.05);
-          border-radius: 12px;
-          padding: 6px;
-          margin-bottom: 20px;
-          overflow-x: auto;
-        }
-
-        .status-tab {
-          padding: 8px 16px;
-          border-radius: 8px;
-          font-size: 0.82rem;
-          font-weight: 500;
-          cursor: pointer;
-          border: none;
-          background: none;
-          color: #555;
-          font-family: 'DM Sans', sans-serif;
-          white-space: nowrap;
-          transition: all 0.2s;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .status-tab:hover { color: #888; }
-        .status-tab.active { background: rgba(255,48,8,0.1); color: #FF3008; }
-
-        .status-count {
-          background: #FF3008;
-          color: #fff;
-          font-size: 0.65rem;
-          padding: 2px 6px;
-          border-radius: 6px;
-          font-weight: 700;
-        }
-
-        /* ORDER CARDS */
-        .orders-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-          gap: 16px;
-        }
-
-        .order-card {
-          background: #111;
-          border: 1px solid rgba(255,255,255,0.05);
-          border-radius: 16px;
-          padding: 20px;
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-          animation: fadeIn 0.3s ease both;
-          transition: border-color 0.2s;
-        }
-
-        .order-card:hover { border-color: rgba(255,48,8,0.15); }
-
-        .order-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-        }
-
-        .order-id {
-          font-family: 'Syne', sans-serif;
-          font-size: 0.95rem;
-          font-weight: 700;
-          color: #fff;
-        }
-
-        .order-time { font-size: 0.72rem; color: #444; margin-top: 3px; }
-        .order-customer { font-size: 0.78rem; color: #555; margin-top: 3px; }
-
-        .table-badge {
-          background: rgba(255,255,255,0.06);
-          color: #888;
-          padding: 5px 12px;
-          border-radius: 8px;
-          font-size: 0.75rem;
-          font-weight: 600;
-          border: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .order-items {
-          border-top: 1px solid rgba(255,255,255,0.05);
-          border-bottom: 1px solid rgba(255,255,255,0.05);
-          padding: 12px 0;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .order-item-row {
-          display: flex;
-          justify-content: space-between;
-          font-size: 0.82rem;
-          color: #666;
-        }
-
-        .order-item-price { font-weight: 600; color: #888; }
-
-        .order-bill {
-          background: rgba(255,255,255,0.02);
-          border: 1px solid rgba(255,255,255,0.05);
-          border-radius: 10px;
-          padding: 12px 14px;
-        }
-
-        .bill-row {
-          display: flex;
-          justify-content: space-between;
-          font-size: 0.78rem;
-          color: #444;
-          margin-bottom: 6px;
-        }
-
-        .bill-total {
-          display: flex;
-          justify-content: space-between;
-          padding-top: 8px;
-          border-top: 1px solid rgba(255,255,255,0.05);
-          margin-top: 2px;
-        }
-
-        .bill-total-label { font-weight: 600; color: #888; font-size: 0.85rem; }
-        .bill-total-value { font-family: 'Syne', sans-serif; font-weight: 800; color: #FF3008; font-size: 1rem; }
-
-        .status-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 5px 10px;
-          border-radius: 8px;
-          font-size: 0.72rem;
-          font-weight: 600;
-        }
-
-        .status-dot {
-          width: 5px; height: 5px;
-          border-radius: 50%;
-        }
-
-        .status-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .status-label { font-size: 0.72rem; color: #333; text-transform: uppercase; letter-spacing: 1px; }
-
-        .action-btns {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 6px;
-        }
-
-        .action-btn {
-          padding: 8px 4px;
-          border-radius: 8px;
-          font-size: 0.68rem;
-          font-weight: 600;
-          cursor: pointer;
-          border: 1px solid rgba(255,255,255,0.06);
-          background: rgba(255,255,255,0.03);
-          color: #555;
-          font-family: 'DM Sans', sans-serif;
-          transition: all 0.2s;
-          text-align: center;
-        }
-
-        .action-btn:hover { color: #888; }
-        .action-btn.active-status { border-color: #FF3008; background: rgba(255,48,8,0.1); color: #FF3008; }
-        .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-        .next-btn {
-          width: 100%;
-          padding: 12px;
-          background: #FF3008;
-          color: #fff;
-          border: none;
-          border-radius: 10px;
-          font-size: 0.88rem;
-          font-weight: 600;
-          cursor: pointer;
-          font-family: 'DM Sans', sans-serif;
-          transition: all 0.2s;
-        }
-
-        .next-btn:hover { background: #CC2000; }
-        .next-btn:disabled { background: #333; cursor: not-allowed; }
-
-        .print-btn {
-          width: 100%;
-          padding: 10px;
-          background: rgba(255,255,255,0.04);
-          color: #555;
-          border: 1px solid rgba(255,255,255,0.06);
-          border-radius: 10px;
-          font-size: 0.82rem;
-          font-weight: 500;
-          cursor: pointer;
-          font-family: 'DM Sans', sans-serif;
-          transition: all 0.2s;
-        }
-
-        .print-btn:hover { background: rgba(255,255,255,0.07); color: #888; }
-
-        /* EMPTY STATE */
-        .empty-state {
-          text-align: center;
-          padding: 80px 20px;
-          color: #333;
-        }
-
-        .empty-icon { font-size: 3rem; margin-bottom: 16px; }
-        .empty-title { font-size: 1rem; font-weight: 600; color: #444; margin-bottom: 8px; }
-        .empty-desc { font-size: 0.85rem; color: #333; }
-
-        /* MENU */
-        .menu-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 20px;
-        }
-
-        .page-title {
-          font-family: 'Syne', sans-serif;
-          font-size: 1.2rem;
-          font-weight: 800;
-          color: #fff;
-        }
-
-        .add-btn {
-          padding: 10px 20px;
-          background: #FF3008;
-          color: #fff;
-          border: none;
-          border-radius: 10px;
-          font-size: 0.85rem;
-          font-weight: 600;
-          cursor: pointer;
-          font-family: 'DM Sans', sans-serif;
-          transition: all 0.2s;
-        }
-
-        .add-btn:hover { background: #CC2000; }
-
-        .form-card {
-          background: #111;
-          border: 1px solid rgba(255,48,8,0.2);
-          border-radius: 14px;
-          padding: 20px;
-          margin-bottom: 16px;
-          animation: fadeIn 0.2s ease;
-        }
-
-        .form-card-title {
-          font-family: 'Syne', sans-serif;
-          font-size: 0.95rem;
-          font-weight: 700;
-          color: #fff;
-          margin-bottom: 16px;
-        }
-
-        .form-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
-        }
-
-        .form-field label {
-          display: block;
-          font-size: 0.72rem;
-          color: #444;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          margin-bottom: 6px;
-        }
-
-        .form-btns {
-          display: flex;
-          gap: 8px;
-          margin-top: 14px;
-        }
-
-        .save-btn {
-          padding: 10px 20px;
-          background: #FF3008;
-          color: #fff;
-          border: none;
-          border-radius: 9px;
-          font-size: 0.85rem;
-          font-weight: 600;
-          cursor: pointer;
-          font-family: 'DM Sans', sans-serif;
-        }
-
-        .save-btn:disabled { background: #333; cursor: not-allowed; }
-
-        .cancel-btn {
-          padding: 10px 20px;
-          background: rgba(255,255,255,0.04);
-          color: #555;
-          border: 1px solid rgba(255,255,255,0.06);
-          border-radius: 9px;
-          font-size: 0.85rem;
-          font-weight: 500;
-          cursor: pointer;
-          font-family: 'DM Sans', sans-serif;
-        }
-
-        .section-card {
-          background: #111;
-          border: 1px solid rgba(255,255,255,0.05);
-          border-radius: 14px;
-          margin-bottom: 12px;
-          overflow: hidden;
-          transition: border-color 0.2s;
-        }
-
-        .section-card.open { border-color: rgba(255,48,8,0.2); }
-
-        .section-header {
-          padding: 16px 20px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-
-        .section-header:hover { background: rgba(255,255,255,0.02); }
-        .section-card.open .section-header { background: rgba(255,48,8,0.04); }
-
-        .section-left { display: flex; align-items: center; gap: 12px; }
-
-        .section-dot {
-          width: 6px; height: 6px;
-          background: #FF3008;
-          border-radius: 50%;
-          box-shadow: 0 0 8px rgba(255,48,8,0.5);
-        }
-
-        .section-name {
-          font-weight: 700;
-          font-size: 0.92rem;
-          color: #fff;
-        }
-
-        .section-count {
-          background: rgba(255,255,255,0.06);
-          color: #555;
-          font-size: 0.68rem;
-          padding: 2px 8px;
-          border-radius: 6px;
-          font-weight: 600;
-        }
-
-        .section-actions { display: flex; gap: 6px; align-items: center; }
-
-        .icon-btn {
-          padding: 6px 12px;
-          border-radius: 7px;
-          font-size: 0.72rem;
-          font-weight: 600;
-          cursor: pointer;
-          border: 1px solid rgba(255,255,255,0.06);
-          background: rgba(255,255,255,0.03);
-          color: #555;
-          font-family: 'DM Sans', sans-serif;
-          transition: all 0.2s;
-        }
-
-        .icon-btn:hover { color: #888; }
-        .icon-btn.danger:hover { background: rgba(255,48,8,0.08); color: #FF3008; border-color: rgba(255,48,8,0.2); }
-
-        .chevron { color: #333; font-size: 0.8rem; transition: transform 0.2s; }
-        .section-card.open .chevron { transform: rotate(180deg); }
-
-        .section-body { padding: 0 20px 20px; }
-
-        .item-card {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          padding: 12px 14px;
-          background: rgba(255,255,255,0.02);
-          border: 1px solid rgba(255,255,255,0.04);
-          border-radius: 10px;
-          margin-bottom: 8px;
-          transition: all 0.2s;
-        }
-
-        .item-card:hover { border-color: rgba(255,255,255,0.08); }
-
-        .item-info { flex: 1; }
-        .item-name { font-weight: 600; font-size: 0.88rem; color: #ddd; }
-        .item-desc { font-size: 0.72rem; color: #444; margin-top: 2px; }
-        .item-price { font-weight: 700; color: #FF3008; font-size: 0.88rem; margin-top: 4px; }
-        .item-tag { background: rgba(255,48,8,0.1); color: #FF3008; font-size: 0.62rem; font-weight: 700; padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(255,48,8,0.2); }
-        .item-btns { display: flex; gap: 6px; }
-
-        .add-item-btn {
-          padding: 10px 16px;
-          background: rgba(255,255,255,0.04);
-          color: #555;
-          border: 1px dashed rgba(255,255,255,0.08);
-          border-radius: 10px;
-          font-size: 0.82rem;
-          font-weight: 500;
-          cursor: pointer;
-          font-family: 'DM Sans', sans-serif;
-          transition: all 0.2s;
-          width: 100%;
-          text-align: center;
-          margin-top: 4px;
-        }
-
-        .add-item-btn:hover { background: rgba(255,48,8,0.06); color: #FF3008; border-color: rgba(255,48,8,0.2); }
-
-        /* QR */
-        .qr-list { display: flex; flex-direction: column; gap: 10px; }
-
-        .qr-item {
-          background: #111;
-          border: 1px solid rgba(255,255,255,0.05);
-          border-radius: 12px;
-          padding: 14px 18px;
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          transition: border-color 0.2s;
-        }
-
-        .qr-item:hover { border-color: rgba(255,255,255,0.1); }
-
-        .qr-num {
-          width: 36px; height: 36px;
-          background: rgba(255,48,8,0.1);
-          border: 1px solid rgba(255,48,8,0.2);
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 800;
-          font-size: 0.85rem;
-          color: #FF3008;
-          flex-shrink: 0;
-        }
-
-        .qr-url { flex: 1; font-size: 0.78rem; color: #444; word-break: break-all; }
-
-        .copy-btn {
-          padding: 7px 14px;
-          background: rgba(255,255,255,0.04);
-          color: #555;
-          border: 1px solid rgba(255,255,255,0.06);
-          border-radius: 8px;
-          font-size: 0.75rem;
-          font-weight: 600;
-          cursor: pointer;
-          font-family: 'DM Sans', sans-serif;
-          transition: all 0.2s;
-          flex-shrink: 0;
-        }
-
-        .copy-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
-
-        /* SETTINGS */
-        .settings-card {
-          background: #111;
-          border: 1px solid rgba(255,255,255,0.05);
-          border-radius: 16px;
-          padding: 28px;
-          max-width: 480px;
-        }
-
-        .settings-field { margin-bottom: 20px; }
-
-        .settings-field label {
-          display: block;
-          font-size: 0.72rem;
-          color: #444;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          margin-bottom: 8px;
-        }
-
-        .save-settings-btn {
-          width: 100%;
-          padding: 14px;
-          background: #FF3008;
-          color: #fff;
-          border: none;
-          border-radius: 10px;
-          font-size: 0.95rem;
-          font-weight: 600;
-          cursor: pointer;
-          font-family: 'DM Sans', sans-serif;
-          transition: all 0.2s;
-        }
-
-        .save-settings-btn:hover { background: #CC2000; }
-
-        /* MOBILE */
-        .mobile-menu-btn {
-          display: none;
-          position: fixed;
-          top: 16px; left: 16px;
-          z-index: 60;
-          background: #111;
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 8px;
-          padding: 8px 12px;
-          color: #fff;
-          cursor: pointer;
-          font-size: 1.2rem;
-        }
-
+        .fade-in { animation: fadeIn 0.3s ease; }
+        @keyframes spin { to { transform: rotate(360deg); } }
         @media (max-width: 768px) {
-          .dashboard { grid-template-columns: 1fr; }
-          .sidebar { transform: translateX(-100%); }
-          .sidebar.open { transform: translateX(0); }
-          .main { margin-left: 0; }
-          .mobile-menu-btn { display: block; }
-          .topbar { padding: 16px 20px 16px 60px; }
-          .content { padding: 20px 16px; }
-          .stats-grid { grid-template-columns: repeat(2, 1fr); }
-          .orders-grid { grid-template-columns: 1fr; }
-          .form-grid { grid-template-columns: 1fr; }
+          .sidebar { position: fixed !important; left: 0 !important; top: 0 !important; height: 100vh !important; z-index: 100 !important; transform: translateX(-100%); transition: transform 0.3s ease !important; }
+          .sidebar.open { transform: translateX(0) !important; }
+          .main-content { margin-left: 0 !important; }
         }
       `}</style>
 
-      {/* Mobile menu button */}
-      <button className="mobile-menu-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>☰</button>
-
-      <div className="dashboard">
+      <div style={{ display: "flex", minHeight: "100vh", background: "#0F0F0F" }}>
 
         {/* SIDEBAR */}
-        <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-          <div className="sidebar-brand">Plat<span>fo</span></div>
+        <div className={"sidebar" + (sidebarOpen ? " open" : "")} style={{ width: sidebarOpen ? "240px" : "70px", background: "#161616", borderRight: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", transition: "width 0.3s ease", flexShrink: 0, position: "sticky", top: 0, height: "100vh", overflow: "hidden" }}>
 
-          <div className="restaurant-info">
-            <div className="restaurant-name">{restaurant.name}</div>
-            <div className="restaurant-id">{restaurantId}</div>
+          {/* Logo */}
+          <div style={{ padding: "24px 16px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }} onClick={() => setSidebarOpen(!sidebarOpen)}>
+            <div style={{ width: "38px", height: "38px", background: "#FF3008", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", flexShrink: 0, boxShadow: "0 0 20px rgba(255,48,8,0.4)" }}>{"🍽️"}</div>
+            {sidebarOpen && (
+              <div>
+                <div style={{ fontWeight: 800, fontSize: "1rem", letterSpacing: "-0.5px" }}>{"Platfo"}</div>
+                <div style={{ fontSize: "0.7rem", color: "#FF3008", fontWeight: 600 }}>{"Admin Panel"}</div>
+              </div>
+            )}
           </div>
 
-          <div className="nav-section-label">{"Navigation"}</div>
+          {/* Restaurant Name */}
+          {sidebarOpen && (
+            <div style={{ padding: "14px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              <div style={{ fontSize: "0.7rem", color: "#666", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>{"Restaurant"}</div>
+              <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{restaurant.name}</div>
+            </div>
+          )}
 
-          {navItems.map((item) => (
-            <button key={item.key} className={`nav-item ${tab === item.key ? "active" : ""}`}
-              onClick={() => { setTab(item.key); setSidebarOpen(false); }}>
-              <span className="nav-icon">{item.icon}</span>
-              {item.label}
-              {item.key === "orders" && counts["New"] > 0 && (
-                <span style={{ marginLeft: "auto", background: "#FF3008", color: "#fff", fontSize: "0.65rem", padding: "2px 6px", borderRadius: "5px", fontWeight: 700 }}>{counts["New"]}</span>
-              )}
-            </button>
-          ))}
+          {/* Nav Items */}
+          <div style={{ flex: 1, padding: "12px 10px", display: "flex", flexDirection: "column", gap: "4px" }}>
+            {NAV_ITEMS.map((item) => (
+              <button key={item.id} onClick={() => setTab(item.id)} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", borderRadius: "10px", border: "none", cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.88rem", fontWeight: 600, background: tab === item.id ? "rgba(255,48,8,0.15)" : "transparent", color: tab === item.id ? "#FF3008" : "#666", transition: "all 0.2s", textAlign: "left", width: "100%", whiteSpace: "nowrap", borderLeft: tab === item.id ? "2px solid #FF3008" : "2px solid transparent" }}>
+                <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{item.icon}</span>
+                {sidebarOpen && item.label}
+              </button>
+            ))}
 
-          <div className="sidebar-bottom">
-            <a href={menuUrl} target="_blank" rel="noreferrer" className="sidebar-link">
-              {"⊕ View Menu"}
+            <div style={{ height: "1px", background: "rgba(255,255,255,0.06)", margin: "8px 0" }} />
+
+            <a href="/admin/tables" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", borderRadius: "10px", color: "#666", textDecoration: "none", fontSize: "0.88rem", fontWeight: 600, whiteSpace: "nowrap", borderLeft: "2px solid transparent" }}>
+              <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{"📋"}</span>
+              {sidebarOpen && "Table History"}
             </a>
-            <a href={"/kitchen/" + restaurantId} target="_blank" rel="noreferrer" className="sidebar-link">
-              {"⊗ Kitchen Display"}
+
+            <a href={"/kitchen/" + restaurantId} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", borderRadius: "10px", color: "#666", textDecoration: "none", fontSize: "0.88rem", fontWeight: 600, whiteSpace: "nowrap", borderLeft: "2px solid transparent" }}>
+              <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{"👨‍🍳"}</span>
+              {sidebarOpen && "Kitchen Display"}
             </a>
-            <a href="/admin/tables" className="sidebar-link">
-              {"⊞ Table History"}
+
+            <a href={menuUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", borderRadius: "10px", color: "#666", textDecoration: "none", fontSize: "0.88rem", fontWeight: 600, whiteSpace: "nowrap", borderLeft: "2px solid transparent" }}>
+              <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{"👁️"}</span>
+              {sidebarOpen && "View Menu"}
             </a>
-            <button className="logout-btn" onClick={logout}>
-              {"⊘ Logout"}
+          </div>
+
+          {/* Logout */}
+          <div style={{ padding: "12px 10px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            <button onClick={logout} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", borderRadius: "10px", border: "none", cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.88rem", fontWeight: 600, background: "transparent", color: "#666", width: "100%", textAlign: "left", whiteSpace: "nowrap", transition: "all 0.2s" }}>
+              <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{"🚪"}</span>
+              {sidebarOpen && "Logout"}
             </button>
           </div>
-        </aside>
+        </div>
 
         {/* MAIN CONTENT */}
-        <main className="main">
+        <div className="main-content" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
 
-          {/* TOP BAR */}
-          <div className="topbar">
-            <div className="topbar-title">
-              {tab === "orders" && "Orders"}
-              {tab === "menu" && "Menu Management"}
-              {tab === "settings" && "Settings"}
-              {tab === "qrcodes" && "QR Codes"}
+          {/* Top Bar */}
+          <div style={{ background: "#161616", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", width: "36px", height: "36px", borderRadius: "8px", cursor: "pointer", fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center" }}>{"☰"}</button>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "1rem" }}>{NAV_ITEMS.find(n => n.id === tab)?.icon + " " + (NAV_ITEMS.find(n => n.id === tab)?.label || tab)}</div>
+                <div style={{ fontSize: "0.72rem", color: "#555", marginTop: "1px" }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "2-digit", month: "long" })}</div>
+              </div>
             </div>
-            <div className="topbar-actions">
-              <a href={menuUrl} target="_blank" rel="noreferrer" className="topbar-btn primary">
-                {"View Menu →"}
-              </a>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <div style={{ background: "rgba(255,48,8,0.1)", border: "1px solid rgba(255,48,8,0.2)", borderRadius: "8px", padding: "6px 12px", fontSize: "0.78rem", color: "#FF3008", fontWeight: 600 }}>
+                {counts["New"] > 0 ? counts["New"] + " New Orders" : "No New Orders"}
+              </div>
             </div>
           </div>
 
-          <div className="content">
+          {/* Page Content */}
+          <div style={{ flex: 1, overflow: "auto", padding: "24px" }}>
 
             {/* ORDERS TAB */}
             {tab === "orders" && (
-              <div>
+              <div className="fade-in">
                 {/* Stats */}
-                <div className="stats-grid">
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "24px" }}>
                   {[
-                    { label: "Total Orders", value: orders.length, red: false },
-                    { label: "New Orders", value: counts["New"] || 0, red: true },
-                    { label: "Pending", value: orders.filter((o) => o.status !== "Delivered").length, red: false },
-                    { label: "Revenue", value: "₹" + totalRevenue, red: true },
-                  ].map((s, i) => (
-                    <div key={i} className="stat-card" style={{ animationDelay: i * 0.05 + "s" }}>
-                      <div className="stat-label">{s.label}</div>
-                      <div className={`stat-value ${s.red ? "red" : ""}`}>{s.value}</div>
+                    { label: "Total Orders", value: orders.length, icon: "📦", color: "#818CF8" },
+                    { label: "New", value: counts["New"] || 0, icon: "⚡", color: "#FFC107" },
+                    { label: "Pending", value: orders.filter(o => o.status !== "Delivered").length, icon: "⏳", color: "#FB923C" },
+                    { label: "Revenue", value: "₹" + totalRevenue, icon: "💰", color: "#4ADE80" },
+                  ].map((stat) => (
+                    <div key={stat.label} style={{ background: "#161616", borderRadius: "16px", padding: "20px", border: "1px solid rgba(255,255,255,0.06)", position: "relative", overflow: "hidden" }}>
+                      <div style={{ position: "absolute", top: "-10px", right: "-10px", fontSize: "3rem", opacity: 0.06 }}>{stat.icon}</div>
+                      <div style={{ fontSize: "0.72rem", color: "#555", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "8px" }}>{stat.label}</div>
+                      <div style={{ fontSize: "1.8rem", fontWeight: 800, color: stat.color }}>{stat.value}</div>
                     </div>
                   ))}
                 </div>
 
-                {/* Filter */}
-                <div className="filter-bar">
-                  <div className="filter-bar-title">{"Filter by Date"}</div>
-                  <div className="date-btns">
-                    {[{ key: "all", label: "All Time" }, { key: "today", label: "Today" }, { key: "yesterday", label: "Yesterday" }, { key: "week", label: "Last 7 Days" }, { key: "month", label: "This Month" }].map((b) => (
-                      <button key={b.key} className={`date-btn ${activeDateBtn === b.key ? "active" : ""}`} onClick={() => handleDateBtn(b.key)}>{b.label}</button>
+                {/* Filters */}
+                <div style={{ background: "#161616", borderRadius: "16px", padding: "20px", marginBottom: "20px", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                      {[{ key: "all", label: "All Time" }, { key: "today", label: "Today" }, { key: "yesterday", label: "Yesterday" }, { key: "week", label: "7 Days" }, { key: "month", label: "Month" }].map((btn) => (
+                        <button key={btn.key} onClick={() => handleDateBtn(btn.key)} style={{ padding: "7px 14px", borderRadius: "8px", fontWeight: 600, fontSize: "0.8rem", cursor: "pointer", fontFamily: "sans-serif", border: activeDateBtn === btn.key ? "1px solid #FF3008" : "1px solid rgba(255,255,255,0.08)", background: activeDateBtn === btn.key ? "rgba(255,48,8,0.15)" : "transparent", color: activeDateBtn === btn.key ? "#FF3008" : "#666", transition: "all 0.2s" }}>
+                          {btn.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                      <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setActiveDateBtn("custom"); }} style={{ ...inputStyle, width: "auto", marginTop: 0, padding: "7px 12px" }} />
+                      <span style={{ color: "#555" }}>{"→"}</span>
+                      <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setActiveDateBtn("custom"); }} style={{ ...inputStyle, width: "auto", marginTop: 0, padding: "7px 12px" }} />
+                      <button onClick={() => fetchOrders(startDate, endDate)} style={{ padding: "7px 16px", background: "#FF3008", color: "#fff", border: "none", borderRadius: "8px", fontWeight: 600, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.8rem" }}>{"Search"}</button>
+                    </div>
+                  </div>
+
+                  {/* Status Filter Tabs */}
+                  <div style={{ display: "flex", gap: "4px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "14px" }}>
+                    {statusTabs.map((t) => (
+                      <button key={t} onClick={() => setStatusFilter(t)} style={{ padding: "6px 14px", border: "none", background: statusFilter === t ? "rgba(255,48,8,0.15)" : "transparent", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600, color: statusFilter === t ? "#FF3008" : "#555", borderRadius: "8px", fontFamily: "sans-serif", display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s" }}>
+                        {t}
+                        {t !== "All" && counts[t] > 0 && <span style={{ background: "#FF3008", color: "#fff", fontSize: "0.65rem", padding: "1px 5px", borderRadius: "6px" }}>{counts[t]}</span>}
+                      </button>
                     ))}
                   </div>
-                  <div className="date-inputs">
-                    <div className="date-input-group">
-                      <label>{"From"}</label>
-                      <input className="date-input" type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setActiveDateBtn("custom"); }} />
-                    </div>
-                    <div className="date-input-group">
-                      <label>{"To"}</label>
-                      <input className="date-input" type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setActiveDateBtn("custom"); }} />
-                    </div>
-                    <button className="search-btn" onClick={() => fetchOrders(startDate, endDate)}>{"Search"}</button>
-                  </div>
                 </div>
 
-                {/* Status Tabs */}
-                <div className="status-tabs">
-                  {statusTabs.map((t) => (
-                    <button key={t} className={`status-tab ${statusFilter === t ? "active" : ""}`} onClick={() => setStatusFilter(t)}>
-                      {t}
-                      {t !== "All" && counts[t] > 0 && <span className="status-count">{counts[t]}</span>}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Orders */}
+                {/* Orders Grid */}
                 {loadingOrders ? (
-                  <div className="empty-state">
-                    <div style={{ width: "32px", height: "32px", border: "2px solid #FF3008", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 12px" }}></div>
-                    <p style={{ color: "#444" }}>{"Loading orders..."}</p>
-                  </div>
+                  <div style={{ textAlign: "center", padding: "60px", color: "#444" }}>{"Loading orders..."}</div>
                 ) : filteredOrders.length === 0 ? (
-                  <div className="empty-state">
-                    <div className="empty-icon">{"◈"}</div>
-                    <div className="empty-title">{"No orders found"}</div>
-                    <div className="empty-desc">{"Try selecting a different date range"}</div>
+                  <div style={{ textAlign: "center", padding: "80px", color: "#333", background: "#161616", borderRadius: "16px", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div style={{ fontSize: "3rem", marginBottom: "12px", opacity: 0.3 }}>{"📋"}</div>
+                    <p style={{ fontWeight: 600, color: "#444" }}>{"No orders found."}</p>
                   </div>
                 ) : (
-                  <div className="orders-grid">
-                    {filteredOrders.map((order, idx) => {
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" }}>
+                    {filteredOrders.map((order) => {
                       const sc = STATUS_COLOR[order.status] || STATUS_COLOR["New"];
                       const nextStatus = STATUS_FLOW[STATUS_FLOW.indexOf(order.status) + 1];
                       const isUpdating = updatingId === order.id;
@@ -1243,61 +440,61 @@ export default function AdminDashboard() {
                       const gst = order.gst || Math.round(subtotal * 0.18);
                       const total = order.total || subtotal + gst;
                       return (
-                        <div key={order.id} className="order-card" style={{ animationDelay: idx * 0.03 + "s" }}>
-                          <div className="order-header">
+                        <div key={order.id} style={{ background: "#161616", borderRadius: "16px", padding: "18px", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "14px", transition: "border 0.2s" }}>
+
+                          {/* Order Header */}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                             <div>
-                              <div className="order-id">{order.id}</div>
-                              <div className="order-time">{formatDate(order.timestamp) + " · " + formatTime(order.timestamp)}</div>
-                              {order.customerName && <div className="order-customer">{order.customerName + " · " + order.customerPhone}</div>}
+                              <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "#fff" }}>{order.id}</div>
+                              <div style={{ fontSize: "0.72rem", color: "#555", marginTop: "3px" }}>{formatDate(order.timestamp) + " · " + formatTime(order.timestamp)}</div>
+                              {order.customerName && <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "4px" }}>{order.customerName + " · " + order.customerPhone}</div>}
                             </div>
-                            <div className="table-badge">{"T" + order.tableNumber}</div>
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+                              <div style={{ background: "rgba(255,255,255,0.06)", color: "#fff", padding: "4px 10px", borderRadius: "8px", fontSize: "0.75rem", fontWeight: 700 }}>{"T" + order.tableNumber}</div>
+                              <div style={{ background: sc.bg, color: sc.text, padding: "3px 8px", borderRadius: "6px", fontSize: "0.68rem", fontWeight: 700, display: "flex", alignItems: "center", gap: "4px" }}>
+                                <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: sc.dot }} />
+                                {order.status}
+                              </div>
+                            </div>
                           </div>
 
-                          <div className="order-items">
+                          {/* Items */}
+                          <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: "10px", padding: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
                             {order.items.map((item, i) => (
-                              <div key={i} className="order-item-row">
-                                <span>{item.name + " × " + item.qty}</span>
-                                <span className="order-item-price">{"₹" + item.price * item.qty}</span>
+                              <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.82rem" }}>
+                                <span style={{ color: "#888" }}>{item.name + " × " + item.qty}</span>
+                                <span style={{ color: "#fff", fontWeight: 600 }}>{"₹" + item.price * item.qty}</span>
                               </div>
                             ))}
-                          </div>
-
-                          <div className="order-bill">
-                            <div className="bill-row"><span>{"Subtotal"}</span><span>{"₹" + subtotal}</span></div>
-                            <div className="bill-row"><span>{"GST (18%)"}</span><span style={{ color: "#FF3008" }}>{"+ ₹" + gst}</span></div>
-                            <div className="bill-total">
-                              <span className="bill-total-label">{"Total"}</span>
-                              <span className="bill-total-value">{"₹" + total}</span>
+                            <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "8px", marginTop: "4px", display: "flex", justifyContent: "space-between" }}>
+                              <span style={{ fontSize: "0.75rem", color: "#555" }}>{"GST (18%): ₹" + gst}</span>
+                              <span style={{ fontSize: "0.9rem", fontWeight: 800, color: "#FF3008" }}>{"₹" + total}</span>
                             </div>
                           </div>
 
-                          <div className="status-row">
-                            <span className="status-label">{"Status"}</span>
-                            <span className="status-badge" style={{ background: sc.bg, color: sc.text, border: "1px solid " + sc.border }}>
-                              <span className="status-dot" style={{ background: sc.dot }}></span>
-                              {order.status}
-                            </span>
-                          </div>
-
-                          <div className="action-btns">
+                          {/* Status Buttons */}
+                          <div style={{ display: "flex", gap: "4px" }}>
                             {STATUS_FLOW.map((s) => (
-                              <button key={s} className={`action-btn ${order.status === s ? "active-status" : ""}`}
-                                onClick={() => updateStatus(order.id, s)}
-                                disabled={isUpdating || order.status === s}>
+                              <button key={s} onClick={() => updateStatus(order.id, s)} disabled={isUpdating || order.status === s}
+                                style={{ flex: 1, padding: "6px 2px", borderRadius: "7px", fontSize: "0.65rem", fontWeight: 700, cursor: isUpdating || order.status === s ? "not-allowed" : "pointer", border: order.status === s ? "1px solid " + sc.dot : "1px solid rgba(255,255,255,0.08)", background: order.status === s ? sc.bg : "transparent", color: order.status === s ? sc.text : "#555", fontFamily: "sans-serif", transition: "all 0.2s", opacity: isUpdating ? 0.5 : 1 }}>
                                 {s}
                               </button>
                             ))}
                           </div>
 
-                          {nextStatus && (
-                            <button className="next-btn" onClick={() => updateStatus(order.id, nextStatus)} disabled={isUpdating}>
-                              {isUpdating ? "Updating..." : "Mark " + nextStatus + " →"}
+                          {/* Action Buttons */}
+                          <div style={{ display: "flex", gap: "8px" }}>
+                            {nextStatus && (
+                              <button onClick={() => updateStatus(order.id, nextStatus)} disabled={isUpdating}
+                                style={{ flex: 1, background: isUpdating ? "#333" : "#FF3008", color: "#fff", border: "none", padding: "10px", borderRadius: "10px", fontSize: "0.82rem", fontWeight: 700, cursor: isUpdating ? "not-allowed" : "pointer", fontFamily: "sans-serif", transition: "all 0.2s" }}>
+                                {isUpdating ? "..." : "→ " + nextStatus}
+                              </button>
+                            )}
+                            <button onClick={() => window.open("/receipt/" + order.id + "?restaurantId=" + restaurantId, "_blank")}
+                              style={{ background: "rgba(255,255,255,0.06)", color: "#888", border: "none", padding: "10px 14px", borderRadius: "10px", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif" }}>
+                              {"🖨️"}
                             </button>
-                          )}
-
-                          <button className="print-btn" onClick={() => window.open("/receipt/" + order.id + "?restaurantId=" + restaurantId, "_blank")}>
-                            {"Print Receipt"}
-                          </button>
+                          </div>
                         </div>
                       );
                     })}
@@ -1308,172 +505,162 @@ export default function AdminDashboard() {
 
             {/* MENU TAB */}
             {tab === "menu" && (
-              <div>
-                <div className="menu-header">
-                  <div className="page-title">{"Menu Sections"}</div>
-                  <button className="add-btn" onClick={() => { setShowAddSection(true); setNewSectionName(""); }}>{"+ Add Section"}</button>
+              <div className="fade-in">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+                  <div>
+                    <h2 style={{ fontSize: "1.2rem", fontWeight: 800 }}>{"Menu Management"}</h2>
+                    <p style={{ color: "#555", fontSize: "0.82rem", marginTop: "4px" }}>{sections.length + " sections · " + menu.length + " items"}</p>
+                  </div>
+                  <button onClick={() => { setShowAddSection(true); setNewSectionName(""); }} style={{ background: "#FF3008", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "10px", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", display: "flex", alignItems: "center", gap: "6px" }}>{"+ Add Section"}</button>
                 </div>
 
                 {showAddSection && (
-                  <div className="form-card">
-                    <div className="form-card-title">{"New Section"}</div>
-                    <input style={inp} placeholder="e.g. Starters, Main Course, Beverages" value={newSectionName} onChange={(e) => setNewSectionName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddSection()} />
-                    <div className="form-btns">
-                      <button className="save-btn" onClick={handleAddSection} disabled={saving}>{saving ? "Creating..." : "Create Section"}</button>
-                      <button className="cancel-btn" onClick={() => setShowAddSection(false)}>{"Cancel"}</button>
+                  <div style={{ background: "#161616", borderRadius: "14px", padding: "20px", marginBottom: "20px", border: "1px solid rgba(255,48,8,0.3)" }}>
+                    <div style={{ fontSize: "0.85rem", fontWeight: 700, marginBottom: "10px" }}>{"New Section"}</div>
+                    <input style={inputStyle} placeholder="e.g. Starters, Main Course, Beverages" value={newSectionName} onChange={(e) => setNewSectionName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddSection()} />
+                    <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+                      <button onClick={handleAddSection} disabled={saving} style={{ background: "#FF3008", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.85rem" }}>{saving ? "Saving..." : "Create"}</button>
+                      <button onClick={() => setShowAddSection(false)} style={{ background: "rgba(255,255,255,0.06)", color: "#888", border: "none", padding: "10px 20px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.85rem" }}>{"Cancel"}</button>
                     </div>
                   </div>
                 )}
 
                 {editSection && (
-                  <div className="form-card">
-                    <div className="form-card-title">{"Edit Section"}</div>
-                    <input style={inp} value={editSection.name} onChange={(e) => setEditSection({ ...editSection, name: e.target.value })} />
-                    <div className="form-btns">
-                      <button className="save-btn" onClick={handleUpdateSection} disabled={saving}>{saving ? "Saving..." : "Update Section"}</button>
-                      <button className="cancel-btn" onClick={() => setEditSection(null)}>{"Cancel"}</button>
+                  <div style={{ background: "#161616", borderRadius: "14px", padding: "20px", marginBottom: "20px", border: "1px solid rgba(255,48,8,0.3)" }}>
+                    <div style={{ fontSize: "0.85rem", fontWeight: 700, marginBottom: "10px" }}>{"Edit Section"}</div>
+                    <input style={inputStyle} value={editSection.name} onChange={(e) => setEditSection({ ...editSection, name: e.target.value })} />
+                    <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+                      <button onClick={handleUpdateSection} disabled={saving} style={{ background: "#FF3008", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.85rem" }}>{saving ? "Saving..." : "Update"}</button>
+                      <button onClick={() => setEditSection(null)} style={{ background: "rgba(255,255,255,0.06)", color: "#888", border: "none", padding: "10px 20px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.85rem" }}>{"Cancel"}</button>
                     </div>
                   </div>
                 )}
 
                 {sections.length === 0 && (
-                  <div className="empty-state">
-                    <div className="empty-icon">{"◉"}</div>
-                    <div className="empty-title">{"No sections yet"}</div>
-                    <div className="empty-desc">{"Click Add Section to get started"}</div>
+                  <div style={{ textAlign: "center", padding: "60px", background: "#161616", borderRadius: "16px", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div style={{ fontSize: "2.5rem", marginBottom: "12px", opacity: 0.3 }}>{"📂"}</div>
+                    <p style={{ color: "#444", fontWeight: 600 }}>{"No sections yet. Create your first section!"}</p>
                   </div>
                 )}
 
-                {sections.map((section) => (
-                  <div key={section.id} className={`section-card ${activeSectionId === section.id ? "open" : ""}`}>
-                    <div className="section-header" onClick={() => setActiveSectionId(activeSectionId === section.id ? null : section.id)}>
-                      <div className="section-left">
-                        <div className="section-dot"></div>
-                        <span className="section-name">{section.name}</span>
-                        <span className="section-count">{sectionItems(section.id).length + " items"}</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {sections.map((section) => (
+                    <div key={section.id} style={{ background: "#161616", borderRadius: "14px", border: activeSectionId === section.id ? "1px solid rgba(255,48,8,0.3)" : "1px solid rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                      <div style={{ padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", background: activeSectionId === section.id ? "rgba(255,48,8,0.05)" : "transparent" }} onClick={() => setActiveSectionId(activeSectionId === section.id ? null : section.id)}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <div style={{ width: "6px", height: "6px", background: "#FF3008", borderRadius: "50%" }} />
+                          <span style={{ fontWeight: 700, fontSize: "0.95rem" }}>{section.name}</span>
+                          <span style={{ background: "rgba(255,255,255,0.06)", color: "#666", fontSize: "0.68rem", padding: "2px 8px", borderRadius: "6px", fontWeight: 600 }}>{sectionItems(section.id).length + " items"}</span>
+                        </div>
+                        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                          <button onClick={(e) => { e.stopPropagation(); setEditSection({ ...section }); setShowAddSection(false); }} style={{ background: "rgba(255,255,255,0.06)", border: "none", padding: "5px 10px", borderRadius: "7px", fontWeight: 600, cursor: "pointer", fontSize: "0.75rem", color: "#888", fontFamily: "sans-serif" }}>{"Edit"}</button>
+                          <button onClick={(e) => { e.stopPropagation(); handleDeleteSection(section.id); }} style={{ background: "rgba(255,48,8,0.1)", border: "none", color: "#FF3008", padding: "5px 10px", borderRadius: "7px", fontWeight: 600, cursor: "pointer", fontSize: "0.75rem", fontFamily: "sans-serif" }}>{"Delete"}</button>
+                          <span style={{ color: "#444", fontSize: "0.8rem" }}>{activeSectionId === section.id ? "▲" : "▼"}</span>
+                        </div>
                       </div>
-                      <div className="section-actions">
-                        <button className="icon-btn" onClick={(e) => { e.stopPropagation(); setEditSection({ ...section }); setShowAddSection(false); }}>{"Edit"}</button>
-                        <button className="icon-btn danger" onClick={(e) => { e.stopPropagation(); handleDeleteSection(section.id); }}>{"Delete"}</button>
-                        <span className="chevron">{"▼"}</span>
-                      </div>
+
+                      {activeSectionId === section.id && (
+                        <div style={{ padding: "0 18px 18px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                          <div style={{ paddingTop: "14px" }}>
+                            {showAddItem && (
+                              <div style={{ background: "rgba(255,48,8,0.05)", borderRadius: "12px", padding: "16px", marginBottom: "14px", border: "1px solid rgba(255,48,8,0.2)" }}>
+                                <div style={{ fontSize: "0.82rem", fontWeight: 700, marginBottom: "12px", color: "#FF3008" }}>{"Add Item to " + section.name}</div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                  {[
+                                    { label: "Item Name *", key: "name", placeholder: "e.g. Paneer Tikka", type: "text" },
+                                    { label: "Price (₹) *", key: "price", placeholder: "e.g. 150", type: "number" },
+                                    { label: "Description", key: "desc", placeholder: "Short description", type: "text" },
+                                    { label: "Tag", key: "tag", placeholder: "e.g. Bestseller", type: "text" },
+                                  ].map((f) => (
+                                    <div key={f.key}>
+                                      <label style={{ fontSize: "0.72rem", color: "#666", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>{f.label}</label>
+                                      <input style={inputStyle} type={f.type} placeholder={f.placeholder} value={newItem[f.key]} onChange={(e) => setNewItem({ ...newItem, [f.key]: e.target.value })} />
+                                    </div>
+                                  ))}
+                                </div>
+                                {itemError && <div style={{ color: "#FF3008", fontSize: "0.8rem", marginTop: "8px" }}>{itemError}</div>}
+                                <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+                                  <button onClick={handleAddItem} disabled={saving} style={{ background: "#FF3008", color: "#fff", border: "none", padding: "9px 18px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.82rem" }}>{saving ? "Saving..." : "Add Item"}</button>
+                                  <button onClick={() => { setShowAddItem(false); setItemError(""); }} style={{ background: "rgba(255,255,255,0.06)", color: "#888", border: "none", padding: "9px 18px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.82rem" }}>{"Cancel"}</button>
+                                </div>
+                              </div>
+                            )}
+
+                            {editItem && editItem.sectionId === section.id && (
+                              <div style={{ background: "rgba(255,48,8,0.05)", borderRadius: "12px", padding: "16px", marginBottom: "14px", border: "1px solid rgba(255,48,8,0.2)" }}>
+                                <div style={{ fontSize: "0.82rem", fontWeight: 700, marginBottom: "12px", color: "#FF3008" }}>{"Edit Item"}</div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                  {[
+                                    { label: "Item Name *", key: "name", type: "text" },
+                                    { label: "Price (₹) *", key: "price", type: "number" },
+                                    { label: "Description", key: "desc", type: "text" },
+                                    { label: "Tag", key: "tag", type: "text" },
+                                  ].map((f) => (
+                                    <div key={f.key}>
+                                      <label style={{ fontSize: "0.72rem", color: "#666", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>{f.label}</label>
+                                      <input style={inputStyle} type={f.type} value={editItem[f.key] || ""} onChange={(e) => setEditItem({ ...editItem, [f.key]: e.target.value })} />
+                                    </div>
+                                  ))}
+                                </div>
+                                {itemError && <div style={{ color: "#FF3008", fontSize: "0.8rem", marginTop: "8px" }}>{itemError}</div>}
+                                <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+                                  <button onClick={handleUpdateItem} disabled={saving} style={{ background: "#FF3008", color: "#fff", border: "none", padding: "9px 18px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.82rem" }}>{saving ? "Saving..." : "Update"}</button>
+                                  <button onClick={() => { setEditItem(null); setItemError(""); }} style={{ background: "rgba(255,255,255,0.06)", color: "#888", border: "none", padding: "9px 18px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.82rem" }}>{"Cancel"}</button>
+                                </div>
+                              </div>
+                            )}
+
+                            {sectionItems(section.id).length === 0 ? (
+                              <div style={{ textAlign: "center", padding: "20px", color: "#444", fontSize: "0.85rem" }}>{"No items yet."}</div>
+                            ) : (
+                              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
+                                {sectionItems(section.id).map((item) => (
+                                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 14px", background: "rgba(255,255,255,0.03)", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.05)" }}>
+                                    <div style={{ flex: 1 }}>
+                                      <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>{item.name}</div>
+                                      {item.desc && <div style={{ fontSize: "0.72rem", color: "#555", marginTop: "2px" }}>{item.desc}</div>}
+                                      <div style={{ fontSize: "0.88rem", fontWeight: 800, color: "#FF3008", marginTop: "3px" }}>{"₹" + item.price}</div>
+                                    </div>
+                                    {item.tag && <span style={{ background: "rgba(255,48,8,0.1)", color: "#FF3008", fontSize: "0.62rem", fontWeight: 700, padding: "2px 8px", borderRadius: "6px" }}>{item.tag}</span>}
+                                    <div style={{ display: "flex", gap: "6px" }}>
+                                      <button onClick={() => { setEditItem({ ...item }); setShowAddItem(false); setItemError(""); }} style={{ background: "rgba(255,255,255,0.06)", border: "none", padding: "6px 10px", borderRadius: "7px", fontWeight: 600, cursor: "pointer", fontSize: "0.72rem", color: "#888", fontFamily: "sans-serif" }}>{"Edit"}</button>
+                                      <button onClick={() => handleDeleteItem(item.id)} style={{ background: "rgba(255,48,8,0.1)", border: "none", color: "#FF3008", padding: "6px 10px", borderRadius: "7px", fontWeight: 600, cursor: "pointer", fontSize: "0.72rem", fontFamily: "sans-serif" }}>{"Del"}</button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {!showAddItem && !editItem && (
+                              <button onClick={() => { setShowAddItem(true); setNewItem({ name: "", price: "", desc: "", tag: "", sectionId: section.id }); setEditItem(null); setItemError(""); }}
+                                style={{ background: "rgba(255,48,8,0.1)", color: "#FF3008", border: "1px dashed rgba(255,48,8,0.3)", padding: "9px 16px", borderRadius: "8px", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", width: "100%", transition: "all 0.2s" }}>
+                                {"+ Add Item to " + section.name}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-
-                    {activeSectionId === section.id && (
-                      <div className="section-body">
-                        {showAddItem && (
-                          <div className="form-card" style={{ marginBottom: "12px" }}>
-                            <div className="form-card-title">{"Add Item to " + section.name}</div>
-                            <div className="form-grid">
-                              <div className="form-field">
-                                <label>{"Item Name *"}</label>
-                                <input style={inp} placeholder="e.g. Paneer Tikka" value={newItem.name} onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} />
-                              </div>
-                              <div className="form-field">
-                                <label>{"Price (₹) *"}</label>
-                                <input style={inp} type="number" placeholder="150" value={newItem.price} onChange={(e) => setNewItem({ ...newItem, price: e.target.value })} />
-                              </div>
-                              <div className="form-field">
-                                <label>{"Description"}</label>
-                                <input style={inp} placeholder="Short description" value={newItem.desc} onChange={(e) => setNewItem({ ...newItem, desc: e.target.value })} />
-                              </div>
-                              <div className="form-field">
-                                <label>{"Tag"}</label>
-                                <input style={inp} placeholder="e.g. Bestseller" value={newItem.tag} onChange={(e) => setNewItem({ ...newItem, tag: e.target.value })} />
-                              </div>
-                            </div>
-                            {itemError && <div style={{ color: "#FF6B6B", fontSize: "0.8rem", marginTop: "10px" }}>{itemError}</div>}
-                            <div className="form-btns">
-                              <button className="save-btn" onClick={handleAddItem} disabled={saving}>{saving ? "Adding..." : "Add Item"}</button>
-                              <button className="cancel-btn" onClick={() => { setShowAddItem(false); setItemError(""); }}>{"Cancel"}</button>
-                            </div>
-                          </div>
-                        )}
-
-                        {editItem && editItem.sectionId === section.id && (
-                          <div className="form-card" style={{ marginBottom: "12px" }}>
-                            <div className="form-card-title">{"Edit Item"}</div>
-                            <div className="form-grid">
-                              <div className="form-field">
-                                <label>{"Item Name *"}</label>
-                                <input style={inp} value={editItem.name} onChange={(e) => setEditItem({ ...editItem, name: e.target.value })} />
-                              </div>
-                              <div className="form-field">
-                                <label>{"Price (₹) *"}</label>
-                                <input style={inp} type="number" value={editItem.price} onChange={(e) => setEditItem({ ...editItem, price: e.target.value })} />
-                              </div>
-                              <div className="form-field">
-                                <label>{"Description"}</label>
-                                <input style={inp} value={editItem.desc || ""} onChange={(e) => setEditItem({ ...editItem, desc: e.target.value })} />
-                              </div>
-                              <div className="form-field">
-                                <label>{"Tag"}</label>
-                                <input style={inp} value={editItem.tag || ""} onChange={(e) => setEditItem({ ...editItem, tag: e.target.value })} />
-                              </div>
-                            </div>
-                            {itemError && <div style={{ color: "#FF6B6B", fontSize: "0.8rem", marginTop: "10px" }}>{itemError}</div>}
-                            <div className="form-btns">
-                              <button className="save-btn" onClick={handleUpdateItem} disabled={saving}>{saving ? "Saving..." : "Update Item"}</button>
-                              <button className="cancel-btn" onClick={() => { setEditItem(null); setItemError(""); }}>{"Cancel"}</button>
-                            </div>
-                          </div>
-                        )}
-
-                        {sectionItems(section.id).length === 0 ? (
-                          <div style={{ textAlign: "center", padding: "20px", color: "#333", fontSize: "0.85rem" }}>{"No items yet"}</div>
-                        ) : (
-                          sectionItems(section.id).map((item) => (
-                            <div key={item.id} className="item-card">
-                              <div className="item-info">
-                                <div className="item-name">{item.name}</div>
-                                {item.desc && <div className="item-desc">{item.desc}</div>}
-                                <div className="item-price">{"₹" + item.price}</div>
-                              </div>
-                              {item.tag && <span className="item-tag">{item.tag}</span>}
-                              <div className="item-btns">
-                                <button className="icon-btn" onClick={() => { setEditItem({ ...item }); setShowAddItem(false); setItemError(""); }}>{"Edit"}</button>
-                                <button className="icon-btn danger" onClick={() => handleDeleteItem(item.id)}>{"Del"}</button>
-                              </div>
-                            </div>
-                          ))
-                        )}
-
-                        {!showAddItem && !editItem && (
-                          <button className="add-item-btn" onClick={() => { setShowAddItem(true); setNewItem({ name: "", price: "", desc: "", tag: "", sectionId: section.id }); setEditItem(null); setItemError(""); }}>
-                            {"+ Add Item to " + section.name}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  ))}
+                </div>
 
                 {unsectionedItems.length > 0 && (
-                  <div className="section-card" style={{ marginTop: "16px" }}>
-                    <div className="section-header" onClick={() => setActiveSectionId(activeSectionId === "other" ? null : "other")}>
-                      <div className="section-left">
-                        <div className="section-dot" style={{ background: "#444" }}></div>
-                        <span className="section-name" style={{ color: "#666" }}>{"Uncategorized"}</span>
-                        <span className="section-count">{unsectionedItems.length + " items"}</span>
-                      </div>
-                      <span className="chevron">{"▼"}</span>
-                    </div>
-                    {activeSectionId === "other" && (
-                      <div className="section-body">
-                        {unsectionedItems.map((item) => (
-                          <div key={item.id} className="item-card">
-                            <div className="item-info">
-                              <div className="item-name">{item.name}</div>
-                              <div className="item-price">{"₹" + item.price}</div>
-                            </div>
-                            <div className="item-btns">
-                              <button className="icon-btn" onClick={() => setEditItem({ ...item })}>{"Edit"}</button>
-                              <button className="icon-btn danger" onClick={() => handleDeleteItem(item.id)}>{"Del"}</button>
-                            </div>
+                  <div style={{ background: "#161616", borderRadius: "14px", padding: "18px", marginTop: "12px", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div style={{ fontSize: "0.72rem", color: "#555", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "12px", fontWeight: 600 }}>{"Uncategorized"}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {unsectionedItems.map((item) => (
+                        <div key={item.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 14px", background: "rgba(255,255,255,0.03)", borderRadius: "10px" }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>{item.name}</div>
+                            <div style={{ fontSize: "0.88rem", fontWeight: 800, color: "#FF3008", marginTop: "3px" }}>{"₹" + item.price}</div>
                           </div>
-                        ))}
-                      </div>
-                    )}
+                          <div style={{ display: "flex", gap: "6px" }}>
+                            <button onClick={() => setEditItem({ ...item })} style={{ background: "rgba(255,255,255,0.06)", border: "none", padding: "6px 10px", borderRadius: "7px", fontWeight: 600, cursor: "pointer", fontSize: "0.72rem", color: "#888", fontFamily: "sans-serif" }}>{"Edit"}</button>
+                            <button onClick={() => handleDeleteItem(item.id)} style={{ background: "rgba(255,48,8,0.1)", border: "none", color: "#FF3008", padding: "6px 10px", borderRadius: "7px", fontWeight: 600, cursor: "pointer", fontSize: "0.72rem", fontFamily: "sans-serif" }}>{"Del"}</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1481,19 +668,22 @@ export default function AdminDashboard() {
 
             {/* SETTINGS TAB */}
             {tab === "settings" && (
-              <div>
-                <div className="page-title" style={{ marginBottom: "20px" }}>{"Restaurant Settings"}</div>
-                <div className="settings-card">
-                  <div className="settings-field">
-                    <label>{"Restaurant Name"}</label>
-                    <input style={inp} value={settingName} onChange={(e) => setSettingName(e.target.value)} placeholder="Restaurant name" />
+              <div className="fade-in" style={{ maxWidth: "540px" }}>
+                <div style={{ marginBottom: "24px" }}>
+                  <h2 style={{ fontSize: "1.2rem", fontWeight: 800 }}>{"Settings"}</h2>
+                  <p style={{ color: "#555", fontSize: "0.82rem", marginTop: "4px" }}>{"Manage your restaurant profile"}</p>
+                </div>
+                <div style={{ background: "#161616", borderRadius: "16px", padding: "24px", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "18px" }}>
+                  <div>
+                    <label style={{ fontSize: "0.72rem", color: "#666", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "6px" }}>{"Restaurant Name"}</label>
+                    <input style={inputStyle} value={settingName} onChange={(e) => setSettingName(e.target.value)} placeholder="Restaurant name" />
                   </div>
-                  <div className="settings-field">
-                    <label>{"Number of Tables"}</label>
-                    <input style={inp} type="number" value={settingTables} onChange={(e) => setSettingTables(e.target.value)} min="1" max="50" />
+                  <div>
+                    <label style={{ fontSize: "0.72rem", color: "#666", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "6px" }}>{"Number of Tables"}</label>
+                    <input style={inputStyle} type="number" value={settingTables} onChange={(e) => setSettingTables(e.target.value)} min="1" max="50" />
                   </div>
-                  <button className="save-settings-btn" onClick={handleSaveSettings}>
-                    {settingSaved ? "✓ Saved!" : "Save Settings"}
+                  <button onClick={handleSaveSettings} style={{ background: settingSaved ? "rgba(74,222,128,0.15)" : "#FF3008", color: settingSaved ? "#4ADE80" : "#fff", border: settingSaved ? "1px solid rgba(74,222,128,0.3)" : "none", padding: "13px", borderRadius: "10px", fontWeight: 700, cursor: "pointer", fontSize: "0.9rem", fontFamily: "sans-serif", transition: "all 0.3s" }}>
+                    {settingSaved ? "✓ Saved!" : "Save Changes"}
                   </button>
                 </div>
               </div>
@@ -1501,17 +691,19 @@ export default function AdminDashboard() {
 
             {/* QR CODES TAB */}
             {tab === "qrcodes" && (
-              <div>
-                <div className="page-title" style={{ marginBottom: "8px" }}>{"QR Code Links"}</div>
-                <p style={{ color: "#444", fontSize: "0.85rem", marginBottom: "20px" }}>{"Copy these links or generate QR codes for each table."}</p>
-                <div className="qr-list">
+              <div className="fade-in">
+                <div style={{ marginBottom: "24px" }}>
+                  <h2 style={{ fontSize: "1.2rem", fontWeight: 800 }}>{"QR Code Links"}</h2>
+                  <p style={{ color: "#555", fontSize: "0.82rem", marginTop: "4px" }}>{"Share these links or print QR codes for each table"}</p>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "12px" }}>
                   {Array.from({ length: Number(restaurant.tableCount) }, (_, i) => i + 1).map((t) => {
                     const url = typeof window !== "undefined" ? window.location.origin + "/menu?restaurantId=" + restaurantId + "&table=" + t : "";
                     return (
-                      <div key={t} className="qr-item">
-                        <div className="qr-num">{t}</div>
-                        <div className="qr-url">{url}</div>
-                        <button className="copy-btn" onClick={() => navigator.clipboard.writeText(url)}>{"Copy"}</button>
+                      <div key={t} style={{ background: "#161616", borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px", border: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div style={{ background: "#FF3008", color: "#fff", width: "36px", height: "36px", borderRadius: "9px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.85rem", flexShrink: 0 }}>{t}</div>
+                        <div style={{ flex: 1, fontSize: "0.75rem", color: "#555", wordBreak: "break-all", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{url}</div>
+                        <button onClick={() => { navigator.clipboard.writeText(url); }} style={{ background: "rgba(255,255,255,0.06)", border: "none", padding: "6px 12px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "0.75rem", color: "#888", fontFamily: "sans-serif", flexShrink: 0 }}>{"Copy"}</button>
                       </div>
                     );
                   })}
@@ -1520,7 +712,7 @@ export default function AdminDashboard() {
             )}
 
           </div>
-        </main>
+        </div>
       </div>
     </>
   );
