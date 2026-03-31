@@ -729,70 +729,83 @@ export default function AdminDashboard() {
 }
 
 function QRCard({ table, url, restaurantName }) {
-  const canvasRef = useRef(null);
+  const containerRef = useRef(null);
   const [copied, setCopied] = useState(false);
-
-  const getQRModules = (text) => {
-    const size = 25;
-    const modules = [];
-    let hash = 0;
-    for (let i = 0; i < text.length; i++) {
-      hash = ((hash << 5) - hash) + text.charCodeAt(i);
-      hash |= 0;
-    }
-    for (let r = 0; r < size; r++) {
-      modules[r] = [];
-      for (let c = 0; c < size; c++) {
-        if ((r < 7 && c < 7) || (r < 7 && c >= size - 7) || (r >= size - 7 && c < 7)) {
-          const fr = r < 7 ? r : r - (size - 7);
-          const fc = c < 7 ? c : c - (size - 7);
-          if (fr === 0 || fr === 6 || fc === 0 || fc === 6) modules[r][c] = 1;
-          else if (fr >= 2 && fr <= 4 && fc >= 2 && fc <= 4) modules[r][c] = 1;
-          else modules[r][c] = 0;
-        } else {
-          modules[r][c] = (Math.abs(hash * (r + 1) * (c + 1) + r * 17 + c * 31) % 3 === 0) ? 1 : 0;
-        }
-      }
-    }
-    return modules;
-  };
-
-  const drawQR = (canvas, text) => {
-    const size = 200;
-    canvas.width = size; canvas.height = size;
-    const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, size, size);
-    const modules = getQRModules(text);
-    const moduleSize = Math.floor((size - 20) / modules.length);
-    const offset = Math.floor((size - moduleSize * modules.length) / 2);
-    ctx.fillStyle = "#000";
-    modules.forEach((row, r) => {
-      row.forEach((cell, c) => {
-        if (cell) ctx.fillRect(offset + c * moduleSize, offset + r * moduleSize, moduleSize, moduleSize);
-      });
-    });
-  };
+  const [qrReady, setQrReady] = useState(false);
 
   useEffect(() => {
-    if (!url || !canvasRef.current) return;
-    drawQR(canvasRef.current, url);
+    if (!url || !containerRef.current) return;
+
+    // Load QRCode.js from CDN
+    if (window.QRCode) {
+      generateQR();
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
+      script.onload = generateQR;
+      document.head.appendChild(script);
+    }
+
+    function generateQR() {
+      containerRef.current.innerHTML = "";
+      new window.QRCode(containerRef.current, {
+        text: url,
+        width: 160,
+        height: 160,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: window.QRCode.CorrectLevel.H,
+      });
+      setQrReady(true);
+    }
   }, [url]);
 
   const buildPrintCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return null;
+    const img = containerRef.current?.querySelector("img") || containerRef.current?.querySelector("canvas");
+    if (!img) return null;
+
     const dlCanvas = document.createElement("canvas");
-    dlCanvas.width = 300; dlCanvas.height = 380;
+    dlCanvas.width = 320; dlCanvas.height = 420;
     const ctx = dlCanvas.getContext("2d");
-    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, 300, 380);
-    ctx.fillStyle = "#FF3008"; ctx.fillRect(0, 0, 300, 60);
-    ctx.fillStyle = "#fff"; ctx.font = "bold 18px sans-serif"; ctx.textAlign = "center";
-    ctx.fillText(restaurantName, 150, 28);
-    ctx.font = "14px sans-serif"; ctx.fillText("Table " + table, 150, 50);
-    ctx.drawImage(canvas, 50, 80, 200, 200);
-    ctx.fillStyle = "#333"; ctx.font = "bold 16px sans-serif"; ctx.fillText("Scan to Order", 150, 310);
-    ctx.fillStyle = "#999"; ctx.font = "11px sans-serif"; ctx.fillText("No app needed · Order from your phone", 150, 332);
-    ctx.fillStyle = "#FF3008"; ctx.font = "bold 13px sans-serif"; ctx.fillText("Powered by Platfo", 150, 360);
+
+    // White background
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, 320, 420);
+
+    // Red header
+    ctx.fillStyle = "#FF3008";
+    ctx.fillRect(0, 0, 320, 70);
+
+    // Restaurant name
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 20px sans-serif";
+    ctx.textAlign = "center";
+    const name = restaurantName.length > 20 ? restaurantName.substring(0, 20) + "..." : restaurantName;
+    ctx.fillText(name, 160, 32);
+
+    ctx.font = "15px sans-serif";
+    ctx.fillText("Table " + table, 160, 56);
+
+    // QR code
+    const tempCanvas = document.createElement("canvas");
+    tempCanvas.width = 200; tempCanvas.height = 200;
+    const tempCtx = tempCanvas.getContext("2d");
+    tempCtx.drawImage(img, 0, 0, 200, 200);
+    ctx.drawImage(tempCanvas, 60, 90, 200, 200);
+
+    // Bottom text
+    ctx.fillStyle = "#111";
+    ctx.font = "bold 18px sans-serif";
+    ctx.fillText("Scan to Order", 160, 322);
+
+    ctx.fillStyle = "#888";
+    ctx.font = "12px sans-serif";
+    ctx.fillText("No app needed · Just scan & order", 160, 346);
+
+    ctx.fillStyle = "#FF3008";
+    ctx.font = "bold 14px sans-serif";
+    ctx.fillText("Powered by Platfo", 160, 400);
+
     return dlCanvas;
   };
 
@@ -810,7 +823,19 @@ function QRCard({ table, url, restaurantName }) {
     if (!dlCanvas) return;
     const img = dlCanvas.toDataURL("image/png");
     const win = window.open("", "_blank");
-    win.document.write(`<html><head><title>Table ${table} QR</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f5f5f5;}img{max-width:300px;box-shadow:0 4px 20px rgba(0,0,0,0.15);border-radius:16px;}@media print{body{background:white;}}</style></head><body><img src="${img}" onload="window.print()"/></body></html>`);
+    win.document.write(`
+      <html>
+      <head>
+        <title>Table ${table} QR Code</title>
+        <style>
+          body { margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #f5f5f5; }
+          img { max-width: 320px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border-radius: 16px; }
+          @media print { body { background: white; } }
+        </style>
+      </head>
+      <body><img src="${img}" onload="window.print()"/></body>
+      </html>
+    `);
   };
 
   const handleCopy = () => {
@@ -825,14 +850,21 @@ function QRCard({ table, url, restaurantName }) {
         <div style={{ background: "#FF3008", color: "#fff", width: "32px", height: "32px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.85rem" }}>{table}</div>
         <span style={{ fontSize: "0.78rem", color: "#555", fontWeight: 600 }}>{"Table " + table}</span>
       </div>
-      <div style={{ background: "#fff", borderRadius: "12px", padding: "10px" }}>
-        <canvas ref={canvasRef} id={"qr-canvas-" + table} style={{ display: "block", width: "140px", height: "140px" }} />
+
+      {/* Real QR Code */}
+      <div style={{ background: "#fff", borderRadius: "12px", padding: "10px", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "180px" }}>
+        {!qrReady && <div style={{ color: "#ccc", fontSize: "0.75rem" }}>{"Generating..."}</div>}
+        <div ref={containerRef} style={{ display: qrReady ? "block" : "none" }} />
       </div>
+
       <div style={{ fontSize: "0.62rem", color: "#444", wordBreak: "break-all", textAlign: "center", lineHeight: 1.4 }}>{url}</div>
+
       <div style={{ display: "flex", gap: "6px", width: "100%" }}>
         <button onClick={handleDownload} style={{ flex: 1, background: "rgba(255,48,8,0.1)", border: "1px solid rgba(255,48,8,0.2)", color: "#FF3008", padding: "8px 4px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "0.68rem", fontFamily: "sans-serif" }}>{"⬇️ Save"}</button>
         <button onClick={handlePrint} style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#888", padding: "8px 4px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "0.68rem", fontFamily: "sans-serif" }}>{"🖨️ Print"}</button>
-        <button onClick={handleCopy} style={{ flex: 1, background: copied ? "rgba(74,222,128,0.1)" : "rgba(255,255,255,0.04)", border: copied ? "1px solid rgba(74,222,128,0.2)" : "1px solid rgba(255,255,255,0.08)", color: copied ? "#4ADE80" : "#888", padding: "8px 4px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "0.68rem", fontFamily: "sans-serif", transition: "all 0.2s" }}>{copied ? "✓ Copied" : "📋 Copy"}</button>
+        <button onClick={handleCopy} style={{ flex: 1, background: copied ? "rgba(74,222,128,0.1)" : "rgba(255,255,255,0.04)", border: copied ? "1px solid rgba(74,222,128,0.2)" : "1px solid rgba(255,255,255,0.08)", color: copied ? "#4ADE80" : "#888", padding: "8px 4px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "0.68rem", fontFamily: "sans-serif", transition: "all 0.2s" }}>
+          {copied ? "✓ Copied" : "📋 Copy"}
+        </button>
       </div>
     </div>
   );
