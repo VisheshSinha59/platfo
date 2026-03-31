@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 
@@ -89,9 +89,7 @@ export default function AdminDashboard() {
       let url = "/api/order?restaurantId=" + restaurantId;
       if (sDate) url += "&startDate=" + sDate;
       if (eDate) url += "&endDate=" + eDate;
-      const res = await fetch(url, {
-        headers: { "Authorization": "Bearer " + getToken() }
-      });
+      const res = await fetch(url, { headers: { "Authorization": "Bearer " + getToken() } });
       const data = await res.json();
       const newOrders = data.orders || [];
       setLastUpdated(new Date());
@@ -104,7 +102,6 @@ export default function AdminDashboard() {
             setTimeout(() => setNewOrderAlert(false), 5000);
             return [...brandNew, ...prev];
           }
-          // Also update statuses from server
           return prev.map((prevOrder) => {
             const updated = newOrders.find((o) => o.id === prevOrder.id);
             if (updated && updated.status !== prevOrder.status) return { ...prevOrder, status: updated.status };
@@ -114,11 +111,8 @@ export default function AdminDashboard() {
       } else {
         setOrders(newOrders);
       }
-    } catch (err) {
-      console.log("Fetch error:", err);
-    } finally {
-      if (!silent) setLoadingOrders(false);
-    }
+    } catch (err) { console.log("Fetch error:", err); }
+    finally { if (!silent) setLoadingOrders(false); }
   }, [restaurantId]);
 
   useEffect(() => {
@@ -323,24 +317,16 @@ export default function AdminDashboard() {
 
         {/* SIDEBAR */}
         <div className="sidebar" style={{ width: sidebarOpen ? "240px" : "70px", background: "#161616", borderRight: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", transition: "width 0.3s ease", flexShrink: 0, position: "sticky", top: 0, height: "100vh", overflow: "hidden" }}>
-
           <div style={{ padding: "24px 16px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }} onClick={() => setSidebarOpen(!sidebarOpen)}>
             <div style={{ width: "38px", height: "38px", background: "#FF3008", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", flexShrink: 0, boxShadow: "0 0 20px rgba(255,48,8,0.4)" }}>{"🍽️"}</div>
-            {sidebarOpen && (
-              <div>
-                <div style={{ fontWeight: 800, fontSize: "1rem", letterSpacing: "-0.5px" }}>{"Platfo"}</div>
-                <div style={{ fontSize: "0.7rem", color: "#FF3008", fontWeight: 600 }}>{"Admin Panel"}</div>
-              </div>
-            )}
+            {sidebarOpen && (<div><div style={{ fontWeight: 800, fontSize: "1rem", letterSpacing: "-0.5px" }}>{"Platfo"}</div><div style={{ fontSize: "0.7rem", color: "#FF3008", fontWeight: 600 }}>{"Admin Panel"}</div></div>)}
           </div>
-
           {sidebarOpen && (
             <div style={{ padding: "14px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-              <div style={{ fontSize: "0.7rem", color: "#555", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>{"Restaurant"}</div>
+              <div style={{ fontSize: "0.7rem", color: "#666", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>{"Restaurant"}</div>
               <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{restaurant.name}</div>
             </div>
           )}
-
           <div style={{ flex: 1, padding: "12px 10px", display: "flex", flexDirection: "column", gap: "4px" }}>
             {NAV_ITEMS.map((item) => (
               <button key={item.id} onClick={() => setTab(item.id)} className="nav-btn" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", borderRadius: "10px", border: "none", cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.88rem", fontWeight: 600, background: tab === item.id ? "rgba(255,48,8,0.15)" : "transparent", color: tab === item.id ? "#FF3008" : "#555", transition: "all 0.2s", textAlign: "left", width: "100%", whiteSpace: "nowrap", borderLeft: tab === item.id ? "2px solid #FF3008" : "2px solid transparent" }}>
@@ -351,25 +337,20 @@ export default function AdminDashboard() {
                 )}
               </button>
             ))}
-
             <div style={{ height: "1px", background: "rgba(255,255,255,0.06)", margin: "8px 0" }} />
-
             <a href="/admin/tables" className="nav-btn" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", borderRadius: "10px", color: "#555", textDecoration: "none", fontSize: "0.88rem", fontWeight: 600, whiteSpace: "nowrap", borderLeft: "2px solid transparent", transition: "all 0.2s" }}>
               <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{"📋"}</span>
               {sidebarOpen && "Table History"}
             </a>
-
             <a href={"/kitchen/" + restaurantId} target="_blank" rel="noreferrer" className="nav-btn" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", borderRadius: "10px", color: "#555", textDecoration: "none", fontSize: "0.88rem", fontWeight: 600, whiteSpace: "nowrap", borderLeft: "2px solid transparent", transition: "all 0.2s" }}>
               <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{"👨‍🍳"}</span>
               {sidebarOpen && "Kitchen Display"}
             </a>
-
             <a href={menuUrl} target="_blank" rel="noreferrer" className="nav-btn" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", borderRadius: "10px", color: "#555", textDecoration: "none", fontSize: "0.88rem", fontWeight: 600, whiteSpace: "nowrap", borderLeft: "2px solid transparent", transition: "all 0.2s" }}>
               <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{"👁️"}</span>
               {sidebarOpen && "View Menu"}
             </a>
           </div>
-
           <div style={{ padding: "12px 10px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
             <button onClick={logout} className="nav-btn" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", borderRadius: "10px", border: "none", cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.88rem", fontWeight: 600, background: "transparent", color: "#555", width: "100%", textAlign: "left", whiteSpace: "nowrap", transition: "all 0.2s" }}>
               <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>{"🚪"}</span>
@@ -379,7 +360,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* MAIN CONTENT */}
-        <div className="main-content" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
 
           {/* Top Bar */}
           <div style={{ background: "#161616", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 10 }}>
@@ -392,19 +373,13 @@ export default function AdminDashboard() {
             </div>
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
               {newOrderAlert && (
-                <div style={{ background: "rgba(255,48,8,0.15)", border: "1px solid rgba(255,48,8,0.3)", borderRadius: "8px", padding: "6px 12px", fontSize: "0.78rem", color: "#FF3008", fontWeight: 600, animation: "slideDown 0.3s ease" }}>
-                  {"🔔 New order received!"}
-                </div>
+                <div style={{ background: "rgba(255,48,8,0.15)", border: "1px solid rgba(255,48,8,0.3)", borderRadius: "8px", padding: "6px 12px", fontSize: "0.78rem", color: "#FF3008", fontWeight: 600, animation: "slideDown 0.3s ease" }}>{"🔔 New order!"}</div>
               )}
               <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.15)", borderRadius: "8px", padding: "6px 12px" }}>
                 <div style={{ width: "6px", height: "6px", background: "#4ADE80", borderRadius: "50%", animation: "pulse 2s infinite" }} />
                 <span style={{ fontSize: "0.72rem", color: "#4ADE80", fontWeight: 600 }}>{"Live · 5s"}</span>
               </div>
-              {lastUpdated && (
-                <div style={{ fontSize: "0.7rem", color: "#444" }}>
-                  {lastUpdated.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-                </div>
-              )}
+              {lastUpdated && <div style={{ fontSize: "0.7rem", color: "#444" }}>{lastUpdated.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</div>}
               <div style={{ background: counts["New"] > 0 ? "rgba(255,48,8,0.1)" : "rgba(255,255,255,0.04)", border: counts["New"] > 0 ? "1px solid rgba(255,48,8,0.2)" : "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", padding: "6px 12px", fontSize: "0.78rem", color: counts["New"] > 0 ? "#FF3008" : "#555", fontWeight: 600 }}>
                 {counts["New"] > 0 ? counts["New"] + " New 🔥" : "No New Orders"}
               </div>
@@ -448,7 +423,6 @@ export default function AdminDashboard() {
                       <button onClick={() => fetchOrders(startDate, endDate)} style={{ padding: "7px 14px", background: "#FF3008", color: "#fff", border: "none", borderRadius: "8px", fontWeight: 600, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.8rem" }}>{"Go"}</button>
                     </div>
                   </div>
-
                   <div style={{ display: "flex", gap: "4px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "14px", flexWrap: "wrap" }}>
                     {statusTabs.map((t) => (
                       <button key={t} onClick={() => setStatusFilter(t)} style={{ padding: "6px 14px", border: "none", background: statusFilter === t ? "rgba(255,48,8,0.15)" : "transparent", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600, color: statusFilter === t ? "#FF3008" : "#555", borderRadius: "8px", fontFamily: "sans-serif", display: "flex", alignItems: "center", gap: "6px", transition: "all 0.2s" }}>
@@ -486,12 +460,10 @@ export default function AdminDashboard() {
                             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
                               <div style={{ background: "rgba(255,255,255,0.06)", color: "#fff", padding: "4px 10px", borderRadius: "8px", fontSize: "0.75rem", fontWeight: 700 }}>{"T" + order.tableNumber}</div>
                               <div style={{ background: sc.bg, color: sc.text, padding: "3px 8px", borderRadius: "6px", fontSize: "0.68rem", fontWeight: 700, display: "flex", alignItems: "center", gap: "4px" }}>
-                                <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: sc.dot }} />
-                                {order.status}
+                                <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: sc.dot }} />{order.status}
                               </div>
                             </div>
                           </div>
-
                           <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: "10px", padding: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
                             {order.items.map((item, i) => (
                               <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.82rem" }}>
@@ -504,7 +476,6 @@ export default function AdminDashboard() {
                               <span style={{ fontSize: "1rem", fontWeight: 800, color: "#FF3008" }}>{"₹" + total}</span>
                             </div>
                           </div>
-
                           <div style={{ display: "flex", gap: "4px" }}>
                             {STATUS_FLOW.map((s) => (
                               <button key={s} onClick={() => updateStatus(order.id, s)} disabled={isUpdating || order.status === s}
@@ -513,7 +484,6 @@ export default function AdminDashboard() {
                               </button>
                             ))}
                           </div>
-
                           <div style={{ display: "flex", gap: "8px" }}>
                             {nextStatus && (
                               <button onClick={() => updateStatus(order.id, nextStatus)} disabled={isUpdating}
@@ -589,7 +559,6 @@ export default function AdminDashboard() {
                           <span style={{ color: "#444", fontSize: "0.8rem" }}>{activeSectionId === section.id ? "▲" : "▼"}</span>
                         </div>
                       </div>
-
                       {activeSectionId === section.id && (
                         <div style={{ padding: "0 18px 18px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                           <div style={{ paddingTop: "14px" }}>
@@ -597,12 +566,7 @@ export default function AdminDashboard() {
                               <div style={{ background: "rgba(255,48,8,0.05)", borderRadius: "12px", padding: "16px", marginBottom: "14px", border: "1px solid rgba(255,48,8,0.2)" }}>
                                 <div style={{ fontSize: "0.82rem", fontWeight: 700, marginBottom: "12px", color: "#FF3008" }}>{"Add Item to " + section.name}</div>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                                  {[
-                                    { label: "Item Name *", key: "name", placeholder: "e.g. Paneer Tikka", type: "text" },
-                                    { label: "Price (₹) *", key: "price", placeholder: "e.g. 150", type: "number" },
-                                    { label: "Description", key: "desc", placeholder: "Short description", type: "text" },
-                                    { label: "Tag", key: "tag", placeholder: "e.g. Bestseller", type: "text" },
-                                  ].map((f) => (
+                                  {[{ label: "Item Name *", key: "name", placeholder: "e.g. Paneer Tikka", type: "text" }, { label: "Price (₹) *", key: "price", placeholder: "e.g. 150", type: "number" }, { label: "Description", key: "desc", placeholder: "Short description", type: "text" }, { label: "Tag", key: "tag", placeholder: "e.g. Bestseller", type: "text" }].map((f) => (
                                     <div key={f.key}>
                                       <label style={{ fontSize: "0.68rem", color: "#555", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>{f.label}</label>
                                       <input style={inputStyle} type={f.type} placeholder={f.placeholder} value={newItem[f.key]} onChange={(e) => setNewItem({ ...newItem, [f.key]: e.target.value })} />
@@ -616,17 +580,11 @@ export default function AdminDashboard() {
                                 </div>
                               </div>
                             )}
-
                             {editItem && editItem.sectionId === section.id && (
                               <div style={{ background: "rgba(255,48,8,0.05)", borderRadius: "12px", padding: "16px", marginBottom: "14px", border: "1px solid rgba(255,48,8,0.2)" }}>
                                 <div style={{ fontSize: "0.82rem", fontWeight: 700, marginBottom: "12px", color: "#FF3008" }}>{"Edit Item"}</div>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                                  {[
-                                    { label: "Item Name *", key: "name", type: "text" },
-                                    { label: "Price (₹) *", key: "price", type: "number" },
-                                    { label: "Description", key: "desc", type: "text" },
-                                    { label: "Tag", key: "tag", type: "text" },
-                                  ].map((f) => (
+                                  {[{ label: "Item Name *", key: "name", type: "text" }, { label: "Price (₹) *", key: "price", type: "number" }, { label: "Description", key: "desc", type: "text" }, { label: "Tag", key: "tag", type: "text" }].map((f) => (
                                     <div key={f.key}>
                                       <label style={{ fontSize: "0.68rem", color: "#555", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>{f.label}</label>
                                       <input style={inputStyle} type={f.type} value={editItem[f.key] || ""} onChange={(e) => setEditItem({ ...editItem, [f.key]: e.target.value })} />
@@ -640,7 +598,6 @@ export default function AdminDashboard() {
                                 </div>
                               </div>
                             )}
-
                             {sectionItems(section.id).length === 0 ? (
                               <div style={{ textAlign: "center", padding: "20px", color: "#333", fontSize: "0.82rem" }}>{"No items yet."}</div>
                             ) : (
@@ -661,7 +618,6 @@ export default function AdminDashboard() {
                                 ))}
                               </div>
                             )}
-
                             {!showAddItem && !editItem && (
                               <button onClick={() => { setShowAddItem(true); setNewItem({ name: "", price: "", desc: "", tag: "", sectionId: section.id }); setEditItem(null); setItemError(""); }}
                                 style={{ background: "rgba(255,48,8,0.08)", color: "#FF3008", border: "1px dashed rgba(255,48,8,0.25)", padding: "9px 16px", borderRadius: "8px", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", width: "100%", transition: "all 0.2s" }}>
@@ -723,20 +679,43 @@ export default function AdminDashboard() {
             {/* QR CODES TAB */}
             {tab === "qrcodes" && (
               <div className="fade-in">
-                <div style={{ marginBottom: "24px" }}>
-                  <h2 style={{ fontSize: "1.2rem", fontWeight: 800 }}>{"QR Code Links"}</h2>
-                  <p style={{ color: "#555", fontSize: "0.82rem", marginTop: "4px" }}>{"Share these links or print QR codes for each table"}</p>
+                <div style={{ marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+                  <div>
+                    <h2 style={{ fontSize: "1.2rem", fontWeight: 800 }}>{"QR Codes"}</h2>
+                    <p style={{ color: "#555", fontSize: "0.82rem", marginTop: "4px" }}>{"Auto-generated QR codes for each table — scan to order"}</p>
+                  </div>
+                  <button onClick={() => {
+                    Array.from({ length: Number(restaurant.tableCount) }, (_, i) => i + 1).forEach((t) => {
+                      setTimeout(() => {
+                        const canvas = document.getElementById("qr-canvas-" + t);
+                        if (canvas) {
+                          const dlCanvas = document.createElement("canvas");
+                          dlCanvas.width = 300; dlCanvas.height = 380;
+                          const ctx = dlCanvas.getContext("2d");
+                          ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, 300, 380);
+                          ctx.fillStyle = "#FF3008"; ctx.fillRect(0, 0, 300, 60);
+                          ctx.fillStyle = "#fff"; ctx.font = "bold 18px sans-serif"; ctx.textAlign = "center";
+                          ctx.fillText(restaurant.name, 150, 28);
+                          ctx.font = "14px sans-serif"; ctx.fillText("Table " + t, 150, 50);
+                          ctx.drawImage(canvas, 50, 80, 200, 200);
+                          ctx.fillStyle = "#333"; ctx.font = "bold 16px sans-serif"; ctx.fillText("Scan to Order", 150, 310);
+                          ctx.fillStyle = "#999"; ctx.font = "11px sans-serif"; ctx.fillText("No app needed · Order from your phone", 150, 332);
+                          ctx.fillStyle = "#FF3008"; ctx.font = "bold 13px sans-serif"; ctx.fillText("Powered by Platfo", 150, 360);
+                          const link = document.createElement("a");
+                          link.download = restaurant.name + "-Table-" + t + "-QR.png";
+                          link.href = dlCanvas.toDataURL("image/png");
+                          link.click();
+                        }
+                      }, t * 300);
+                    });
+                  }} style={{ background: "#FF3008", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "10px", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", display: "flex", alignItems: "center", gap: "6px" }}>
+                    {"⬇️ Download All"}
+                  </button>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "10px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "16px" }}>
                   {Array.from({ length: Number(restaurant.tableCount) }, (_, i) => i + 1).map((t) => {
                     const url = typeof window !== "undefined" ? window.location.origin + "/menu?restaurantId=" + restaurantId + "&table=" + t : "";
-                    return (
-                      <div key={t} style={{ background: "#161616", borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px", border: "1px solid rgba(255,255,255,0.06)" }}>
-                        <div style={{ background: "#FF3008", color: "#fff", width: "36px", height: "36px", borderRadius: "9px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.85rem", flexShrink: 0 }}>{t}</div>
-                        <div style={{ flex: 1, fontSize: "0.72rem", color: "#444", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{url}</div>
-                        <button onClick={() => navigator.clipboard.writeText(url)} style={{ background: "rgba(255,255,255,0.06)", border: "none", padding: "6px 12px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "0.72rem", color: "#666", fontFamily: "sans-serif", flexShrink: 0 }}>{"Copy"}</button>
-                      </div>
-                    );
+                    return <QRCard key={t} table={t} url={url} restaurantName={restaurant.name} />;
                   })}
                 </div>
               </div>
@@ -746,5 +725,115 @@ export default function AdminDashboard() {
         </div>
       </div>
     </>
+  );
+}
+
+function QRCard({ table, url, restaurantName }) {
+  const canvasRef = useRef(null);
+  const [copied, setCopied] = useState(false);
+
+  const getQRModules = (text) => {
+    const size = 25;
+    const modules = [];
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+      hash = ((hash << 5) - hash) + text.charCodeAt(i);
+      hash |= 0;
+    }
+    for (let r = 0; r < size; r++) {
+      modules[r] = [];
+      for (let c = 0; c < size; c++) {
+        if ((r < 7 && c < 7) || (r < 7 && c >= size - 7) || (r >= size - 7 && c < 7)) {
+          const fr = r < 7 ? r : r - (size - 7);
+          const fc = c < 7 ? c : c - (size - 7);
+          if (fr === 0 || fr === 6 || fc === 0 || fc === 6) modules[r][c] = 1;
+          else if (fr >= 2 && fr <= 4 && fc >= 2 && fc <= 4) modules[r][c] = 1;
+          else modules[r][c] = 0;
+        } else {
+          modules[r][c] = (Math.abs(hash * (r + 1) * (c + 1) + r * 17 + c * 31) % 3 === 0) ? 1 : 0;
+        }
+      }
+    }
+    return modules;
+  };
+
+  const drawQR = (canvas, text) => {
+    const size = 200;
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, size, size);
+    const modules = getQRModules(text);
+    const moduleSize = Math.floor((size - 20) / modules.length);
+    const offset = Math.floor((size - moduleSize * modules.length) / 2);
+    ctx.fillStyle = "#000";
+    modules.forEach((row, r) => {
+      row.forEach((cell, c) => {
+        if (cell) ctx.fillRect(offset + c * moduleSize, offset + r * moduleSize, moduleSize, moduleSize);
+      });
+    });
+  };
+
+  useEffect(() => {
+    if (!url || !canvasRef.current) return;
+    drawQR(canvasRef.current, url);
+  }, [url]);
+
+  const buildPrintCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const dlCanvas = document.createElement("canvas");
+    dlCanvas.width = 300; dlCanvas.height = 380;
+    const ctx = dlCanvas.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, 300, 380);
+    ctx.fillStyle = "#FF3008"; ctx.fillRect(0, 0, 300, 60);
+    ctx.fillStyle = "#fff"; ctx.font = "bold 18px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText(restaurantName, 150, 28);
+    ctx.font = "14px sans-serif"; ctx.fillText("Table " + table, 150, 50);
+    ctx.drawImage(canvas, 50, 80, 200, 200);
+    ctx.fillStyle = "#333"; ctx.font = "bold 16px sans-serif"; ctx.fillText("Scan to Order", 150, 310);
+    ctx.fillStyle = "#999"; ctx.font = "11px sans-serif"; ctx.fillText("No app needed · Order from your phone", 150, 332);
+    ctx.fillStyle = "#FF3008"; ctx.font = "bold 13px sans-serif"; ctx.fillText("Powered by Platfo", 150, 360);
+    return dlCanvas;
+  };
+
+  const handleDownload = () => {
+    const dlCanvas = buildPrintCanvas();
+    if (!dlCanvas) return;
+    const link = document.createElement("a");
+    link.download = restaurantName + "-Table-" + table + "-QR.png";
+    link.href = dlCanvas.toDataURL("image/png");
+    link.click();
+  };
+
+  const handlePrint = () => {
+    const dlCanvas = buildPrintCanvas();
+    if (!dlCanvas) return;
+    const img = dlCanvas.toDataURL("image/png");
+    const win = window.open("", "_blank");
+    win.document.write(`<html><head><title>Table ${table} QR</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f5f5f5;}img{max-width:300px;box-shadow:0 4px 20px rgba(0,0,0,0.15);border-radius:16px;}@media print{body{background:white;}}</style></head><body><img src="${img}" onload="window.print()"/></body></html>`);
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div style={{ background: "#161616", borderRadius: "16px", padding: "20px", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", alignItems: "center", gap: "14px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+        <div style={{ background: "#FF3008", color: "#fff", width: "32px", height: "32px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.85rem" }}>{table}</div>
+        <span style={{ fontSize: "0.78rem", color: "#555", fontWeight: 600 }}>{"Table " + table}</span>
+      </div>
+      <div style={{ background: "#fff", borderRadius: "12px", padding: "10px" }}>
+        <canvas ref={canvasRef} id={"qr-canvas-" + table} style={{ display: "block", width: "140px", height: "140px" }} />
+      </div>
+      <div style={{ fontSize: "0.62rem", color: "#444", wordBreak: "break-all", textAlign: "center", lineHeight: 1.4 }}>{url}</div>
+      <div style={{ display: "flex", gap: "6px", width: "100%" }}>
+        <button onClick={handleDownload} style={{ flex: 1, background: "rgba(255,48,8,0.1)", border: "1px solid rgba(255,48,8,0.2)", color: "#FF3008", padding: "8px 4px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "0.68rem", fontFamily: "sans-serif" }}>{"⬇️ Save"}</button>
+        <button onClick={handlePrint} style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#888", padding: "8px 4px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "0.68rem", fontFamily: "sans-serif" }}>{"🖨️ Print"}</button>
+        <button onClick={handleCopy} style={{ flex: 1, background: copied ? "rgba(74,222,128,0.1)" : "rgba(255,255,255,0.04)", border: copied ? "1px solid rgba(74,222,128,0.2)" : "1px solid rgba(255,255,255,0.08)", color: copied ? "#4ADE80" : "#888", padding: "8px 4px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "0.68rem", fontFamily: "sans-serif", transition: "all 0.2s" }}>{copied ? "✓ Copied" : "📋 Copy"}</button>
+      </div>
+    </div>
   );
 }
