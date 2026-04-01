@@ -39,9 +39,6 @@ export default function Tables() {
     </div>
   );
 
-  const sym = restaurant.currencySymbol || "₹";
-  const tRate = restaurant.taxRate ?? 18;
-  const tName = restaurant.taxName || "GST";
   const tableCount = restaurant.tableCount || 10;
   const tables = Array.from({ length: tableCount }, (_, i) => i + 1);
 
@@ -107,15 +104,12 @@ export default function Tables() {
             <button onClick={() => router.push("/admin/dashboard")} style={{ background: "rgba(255,255,255,0.06)", border: "none", color: "#888", width: "36px", height: "36px", borderRadius: "8px", cursor: "pointer", fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center" }}>{"←"}</button>
             <div>
               <div style={{ fontWeight: 800, fontSize: "1rem" }}>{"📋 Table History"}</div>
-              <div style={{ fontSize: "0.72rem", color: "#555", marginTop: "1px", display: "flex", alignItems: "center", gap: "8px" }}>
-                {restaurant.name}
-                {restaurant.country && <span style={{ color: "#444" }}>{"· " + sym + " " + (restaurant.currency || "")}</span>}
-              </div>
+              <div style={{ fontSize: "0.72rem", color: "#555", marginTop: "1px" }}>{restaurant.name}</div>
             </div>
           </div>
           <div style={{ display: "flex", gap: "10px" }}>
             {[
-              { label: "Revenue", value: sym + totalRevenue, color: "#4ADE80" },
+              { label: "Revenue", value: "₹" + totalRevenue, color: "#4ADE80" },
               { label: "Active", value: activeOrders, color: "#FFC107" },
               { label: "Total", value: orders.length, color: "#818CF8" },
             ].map((stat) => (
@@ -132,8 +126,6 @@ export default function Tables() {
           {/* Left — Tables Grid */}
           <div style={{ width: "320px", borderRight: "1px solid rgba(255,255,255,0.06)", padding: "20px", overflowY: "auto", flexShrink: 0 }}>
             <div style={{ fontSize: "0.72rem", color: "#555", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "14px", fontWeight: 600 }}>{"Tables · " + tableCount + " total"}</div>
-
-            {/* Status Legend */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "16px" }}>
               {Object.entries(statusConfig).map(([key, val]) => (
                 <div key={key} style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "0.65rem", color: val.color }}>
@@ -142,7 +134,6 @@ export default function Tables() {
                 </div>
               ))}
             </div>
-
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
               {loading ? (
                 Array.from({ length: tableCount }, (_, i) => (
@@ -153,7 +144,6 @@ export default function Tables() {
                   const status = getTableStatus(t);
                   const conf = statusConfig[status];
                   const orderCount = getTableOrders(t).length;
-                  const tableRevenue = getTableRevenue(t);
                   const isSelected = selectedTable === t;
                   return (
                     <button key={t} onClick={() => setSelectedTable(isSelected ? null : t)}
@@ -162,8 +152,7 @@ export default function Tables() {
                         <div style={{ position: "absolute", top: "4px", right: "4px", width: "6px", height: "6px", background: conf.color, borderRadius: "50%", animation: status === "new" ? "pulse 1s infinite" : "none" }} />
                       )}
                       <span style={{ fontWeight: 800, fontSize: "1rem", color: isSelected ? "#FF3008" : status === "empty" ? "#333" : conf.color }}>{t}</span>
-                      {orderCount > 0 && <span style={{ fontSize: "0.5rem", color: conf.color, fontWeight: 600 }}>{orderCount + " orders"}</span>}
-                      {tableRevenue > 0 && <span style={{ fontSize: "0.48rem", color: "#555" }}>{sym + tableRevenue}</span>}
+                      {orderCount > 0 && <span style={{ fontSize: "0.55rem", color: conf.color, fontWeight: 600 }}>{orderCount + " orders"}</span>}
                     </button>
                   );
                 })
@@ -184,9 +173,7 @@ export default function Tables() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
                   <div>
                     <h2 style={{ fontSize: "1.2rem", fontWeight: 800 }}>{"Table " + selectedTable}</h2>
-                    <p style={{ color: "#555", fontSize: "0.8rem", marginTop: "3px" }}>
-                      {selectedTableOrders.length + " orders · " + sym + getTableRevenue(selectedTable) + " revenue"}
-                    </p>
+                    <p style={{ color: "#555", fontSize: "0.8rem", marginTop: "3px" }}>{selectedTableOrders.length + " orders · ₹" + getTableRevenue(selectedTable) + " revenue"}</p>
                   </div>
                   <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                     <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search orders..." style={{ padding: "9px 14px", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", color: "#fff", fontSize: "0.82rem", fontFamily: "sans-serif", width: "180px" }} />
@@ -204,8 +191,8 @@ export default function Tables() {
                     {filteredOrders.map((order) => {
                       const sc = STATUS_COLOR[order.status] || STATUS_COLOR["New"];
                       const subtotal = order.subtotal || order.items.reduce((s, i) => s + i.price * i.qty, 0);
-                      const tax = order.gst || Math.round(subtotal * tRate / 100);
-                      const total = order.total || subtotal + tax;
+                      const gst = order.gst || Math.round(subtotal * 0.18);
+                      const total = order.total || subtotal + gst;
                       return (
                         <div key={order.id} style={{ background: "#161616", borderRadius: "14px", padding: "18px", border: "1px solid rgba(255,255,255,0.06)" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "14px" }}>
@@ -227,22 +214,20 @@ export default function Tables() {
                               <button onClick={() => window.open("/receipt/" + order.id + "?restaurantId=" + restaurantId, "_blank")} style={{ background: "rgba(255,255,255,0.06)", border: "none", color: "#666", padding: "5px 10px", borderRadius: "8px", cursor: "pointer", fontSize: "0.75rem", fontFamily: "sans-serif", fontWeight: 600 }}>{"🖨️ Print"}</button>
                             </div>
                           </div>
-
                           <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: "10px", padding: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
                             {order.items.map((item, i) => (
                               <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.82rem" }}>
                                 <span style={{ color: "#666" }}>{item.name + " × " + item.qty}</span>
-                                <span style={{ color: "#fff", fontWeight: 600 }}>{sym + item.price * item.qty}</span>
+                                <span style={{ color: "#fff", fontWeight: 600 }}>{"₹" + item.price * item.qty}</span>
                               </div>
                             ))}
                             <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "8px", marginTop: "4px" }}>
                               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", color: "#444", marginBottom: "4px" }}>
-                                <span>{tName + " (" + tRate + "%)"}</span>
-                                <span>{sym + tax}</span>
+                                <span>{"GST (18%)"}</span><span>{"₹" + gst}</span>
                               </div>
                               <div style={{ display: "flex", justifyContent: "space-between" }}>
                                 <span style={{ fontWeight: 700, fontSize: "0.85rem" }}>{"Total"}</span>
-                                <span style={{ fontWeight: 800, color: "#FF3008", fontSize: "0.95rem" }}>{sym + total}</span>
+                                <span style={{ fontWeight: 800, color: "#FF3008", fontSize: "0.95rem" }}>{"₹" + total}</span>
                               </div>
                             </div>
                           </div>
