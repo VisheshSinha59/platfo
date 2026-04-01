@@ -10,12 +10,59 @@ const STATUS_COLOR = {
   Delivered: { bg: "rgba(148,163,184,0.15)", text: "#94A3B8", dot: "#94A3B8" },
 };
 
-function getISTDate(offsetDays) {
+const COUNTRIES = [
+  { country: "India", flag: "🇮🇳", currency: "INR", symbol: "₹", taxName: "GST", taxRate: 18, timezone: "Asia/Kolkata" },
+  { country: "United States", flag: "🇺🇸", currency: "USD", symbol: "$", taxName: "Tax", taxRate: 8, timezone: "America/New_York" },
+  { country: "United Kingdom", flag: "🇬🇧", currency: "GBP", symbol: "£", taxName: "VAT", taxRate: 20, timezone: "Europe/London" },
+  { country: "United Arab Emirates", flag: "🇦🇪", currency: "AED", symbol: "د.إ", taxName: "VAT", taxRate: 5, timezone: "Asia/Dubai" },
+  { country: "Saudi Arabia", flag: "🇸🇦", currency: "SAR", symbol: "ر.س", taxName: "VAT", taxRate: 15, timezone: "Asia/Riyadh" },
+  { country: "Singapore", flag: "🇸🇬", currency: "SGD", symbol: "S$", taxName: "GST", taxRate: 9, timezone: "Asia/Singapore" },
+  { country: "Australia", flag: "🇦🇺", currency: "AUD", symbol: "A$", taxName: "GST", taxRate: 10, timezone: "Australia/Sydney" },
+  { country: "Canada", flag: "🇨🇦", currency: "CAD", symbol: "C$", taxName: "GST", taxRate: 5, timezone: "America/Toronto" },
+  { country: "Germany", flag: "🇩🇪", currency: "EUR", symbol: "€", taxName: "VAT", taxRate: 19, timezone: "Europe/Berlin" },
+  { country: "France", flag: "🇫🇷", currency: "EUR", symbol: "€", taxName: "VAT", taxRate: 20, timezone: "Europe/Paris" },
+  { country: "Netherlands", flag: "🇳🇱", currency: "EUR", symbol: "€", taxName: "VAT", taxRate: 21, timezone: "Europe/Amsterdam" },
+  { country: "Nepal", flag: "🇳🇵", currency: "NPR", symbol: "Rs", taxName: "VAT", taxRate: 13, timezone: "Asia/Kathmandu" },
+  { country: "Bangladesh", flag: "🇧🇩", currency: "BDT", symbol: "৳", taxName: "VAT", taxRate: 15, timezone: "Asia/Dhaka" },
+  { country: "Sri Lanka", flag: "🇱🇰", currency: "LKR", symbol: "₨", taxName: "VAT", taxRate: 15, timezone: "Asia/Colombo" },
+  { country: "Malaysia", flag: "🇲🇾", currency: "MYR", symbol: "RM", taxName: "SST", taxRate: 6, timezone: "Asia/Kuala_Lumpur" },
+  { country: "South Africa", flag: "🇿🇦", currency: "ZAR", symbol: "R", taxName: "VAT", taxRate: 15, timezone: "Africa/Johannesburg" },
+  { country: "Nigeria", flag: "🇳🇬", currency: "NGN", symbol: "₦", taxName: "VAT", taxRate: 7.5, timezone: "Africa/Lagos" },
+  { country: "Kenya", flag: "🇰🇪", currency: "KES", symbol: "KSh", taxName: "VAT", taxRate: 16, timezone: "Africa/Nairobi" },
+  { country: "Japan", flag: "🇯🇵", currency: "JPY", symbol: "¥", taxName: "Tax", taxRate: 10, timezone: "Asia/Tokyo" },
+  { country: "New Zealand", flag: "🇳🇿", currency: "NZD", symbol: "NZ$", taxName: "GST", taxRate: 15, timezone: "Pacific/Auckland" },
+];
+
+const TIMEZONES = [
+  { value: "Asia/Kolkata", label: "🇮🇳 India (IST +5:30)" },
+  { value: "America/New_York", label: "🇺🇸 New York (EST -5:00)" },
+  { value: "America/Los_Angeles", label: "🇺🇸 Los Angeles (PST -8:00)" },
+  { value: "America/Chicago", label: "🇺🇸 Chicago (CST -6:00)" },
+  { value: "Europe/London", label: "🇬🇧 London (GMT 0:00)" },
+  { value: "Europe/Paris", label: "🇫🇷 Paris (CET +1:00)" },
+  { value: "Europe/Berlin", label: "🇩🇪 Berlin (CET +1:00)" },
+  { value: "Europe/Amsterdam", label: "🇳🇱 Amsterdam (CET +1:00)" },
+  { value: "Asia/Dubai", label: "🇦🇪 Dubai (GST +4:00)" },
+  { value: "Asia/Riyadh", label: "🇸🇦 Riyadh (AST +3:00)" },
+  { value: "Asia/Singapore", label: "🇸🇬 Singapore (SGT +8:00)" },
+  { value: "Asia/Tokyo", label: "🇯🇵 Tokyo (JST +9:00)" },
+  { value: "Asia/Kuala_Lumpur", label: "🇲🇾 Kuala Lumpur (MYT +8:00)" },
+  { value: "Asia/Dhaka", label: "🇧🇩 Dhaka (BST +6:00)" },
+  { value: "Asia/Kathmandu", label: "🇳🇵 Kathmandu (NPT +5:45)" },
+  { value: "Asia/Colombo", label: "🇱🇰 Colombo (SLST +5:30)" },
+  { value: "Australia/Sydney", label: "🇦🇺 Sydney (AEST +10:00)" },
+  { value: "Pacific/Auckland", label: "🇳🇿 Auckland (NZST +12:00)" },
+  { value: "Africa/Lagos", label: "🇳🇬 Lagos (WAT +1:00)" },
+  { value: "Africa/Nairobi", label: "🇰🇪 Nairobi (EAT +3:00)" },
+  { value: "Africa/Johannesburg", label: "🇿🇦 Johannesburg (SAST +2:00)" },
+  { value: "America/Toronto", label: "🇨🇦 Toronto (EST -5:00)" },
+];
+
+function getDateByTimezone(offsetDays, timezone) {
   const now = new Date();
-  const istOffset = 5.5 * 60 * 60 * 1000;
-  const istDate = new Date(now.getTime() + istOffset);
-  istDate.setDate(istDate.getDate() + offsetDays);
-  return istDate.toISOString().split("T")[0];
+  const tzDate = new Date(now.toLocaleString("en-US", { timeZone: timezone || "Asia/Kolkata" }));
+  tzDate.setDate(tzDate.getDate() + offsetDays);
+  return tzDate.toISOString().split("T")[0];
 }
 
 function formatTime(iso) {
@@ -60,11 +107,28 @@ export default function AdminDashboard() {
   const [newOrderAlert, setNewOrderAlert] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
 
+  // Localization
+  const [currency, setCurrency] = useState("INR");
+  const [currencySymbol, setCurrencySymbol] = useState("₹");
+  const [country, setCountry] = useState("India");
+  const [taxName, setTaxName] = useState("GST");
+  const [taxRate, setTaxRate] = useState(18);
+  const [timezone, setTimezone] = useState("Asia/Kolkata");
+
+  // Payment
+  const [razorpayKeyId, setRazorpayKeyId] = useState("");
+  const [razorpayKeySecret, setRazorpayKeySecret] = useState("");
+  const [savingPayment, setSavingPayment] = useState(false);
+  const [paymentSaved, setPaymentSaved] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
+
+  // Section states
   const [showAddSection, setShowAddSection] = useState(false);
   const [newSectionName, setNewSectionName] = useState("");
   const [editSection, setEditSection] = useState(null);
   const [activeSectionId, setActiveSectionId] = useState(null);
 
+  // Item states
   const [showAddItem, setShowAddItem] = useState(false);
   const [newItem, setNewItem] = useState({ name: "", price: "", desc: "", tag: "", sectionId: "" });
   const [editItem, setEditItem] = useState(null);
@@ -80,6 +144,14 @@ export default function AdminDashboard() {
     setSections(r.sections || []);
     setSettingName(r.name);
     setSettingTables(r.tableCount);
+    setCurrency(r.currency || "INR");
+    setCurrencySymbol(r.currencySymbol || "₹");
+    setCountry(r.country || "India");
+    setTaxName(r.taxName || "GST");
+    setTaxRate(r.taxRate ?? 18);
+    setTimezone(r.timezone || "Asia/Kolkata");
+    setRazorpayKeyId(r.razorpayKeyId || "");
+    setRazorpayKeySecret(r.razorpayKeySecret || "");
   }, [router]);
 
   const fetchOrders = useCallback(async (sDate, eDate, silent = false) => {
@@ -143,13 +215,14 @@ export default function AdminDashboard() {
 
   const handleDateBtn = (type) => {
     setActiveDateBtn(type);
-    if (type === "today") { const d = getISTDate(0); setStartDate(d); setEndDate(d); fetchOrders(d, d); }
-    else if (type === "yesterday") { const d = getISTDate(-1); setStartDate(d); setEndDate(d); fetchOrders(d, d); }
-    else if (type === "week") { const s = getISTDate(-7); const e = getISTDate(0); setStartDate(s); setEndDate(e); fetchOrders(s, e); }
+    const tz = timezone || "Asia/Kolkata";
+    if (type === "today") { const d = getDateByTimezone(0, tz); setStartDate(d); setEndDate(d); fetchOrders(d, d); }
+    else if (type === "yesterday") { const d = getDateByTimezone(-1, tz); setStartDate(d); setEndDate(d); fetchOrders(d, d); }
+    else if (type === "week") { const s = getDateByTimezone(-7, tz); const e = getDateByTimezone(0, tz); setStartDate(s); setEndDate(e); fetchOrders(s, e); }
     else if (type === "month") {
-      const now = new Date(); const istDate = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
-      const first = new Date(istDate.getFullYear(), istDate.getMonth(), 1).toISOString().split("T")[0];
-      const today = getISTDate(0); setStartDate(first); setEndDate(today); fetchOrders(first, today);
+      const now = new Date(new Date().toLocaleString("en-US", { timeZone: tz }));
+      const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+      const today = getDateByTimezone(0, tz); setStartDate(first); setEndDate(today); fetchOrders(first, today);
     } else { setStartDate(""); setEndDate(""); fetchOrders("", ""); }
   };
 
@@ -264,6 +337,46 @@ export default function AdminDashboard() {
     } catch {}
   };
 
+  const handleSaveLocalization = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/restaurant?action=update", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getToken() },
+        body: JSON.stringify({ id: restaurantId, currency, currencySymbol, country, taxName, taxRate: Number(taxRate), timezone }),
+      });
+      if (res.ok) {
+        const stored = JSON.parse(localStorage.getItem("restaurant"));
+        stored.currency = currency; stored.currencySymbol = currencySymbol;
+        stored.country = country; stored.taxName = taxName;
+        stored.taxRate = Number(taxRate); stored.timezone = timezone;
+        localStorage.setItem("restaurant", JSON.stringify(stored));
+        setRestaurant(stored); setSettingSaved(true);
+        setTimeout(() => setSettingSaved(false), 2000);
+      }
+    } catch {}
+    finally { setSaving(false); }
+  };
+
+  const handleSavePayment = async () => {
+    setSavingPayment(true); setPaymentError(""); setPaymentSaved(false);
+    try {
+      const res = await fetch("/api/restaurant?action=updatePayment", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getToken() },
+        body: JSON.stringify({ restaurantId, razorpayKeyId, razorpayKeySecret }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed.");
+      const stored = JSON.parse(localStorage.getItem("restaurant"));
+      stored.razorpayKeyId = razorpayKeyId;
+      localStorage.setItem("restaurant", JSON.stringify(stored));
+      setRestaurant(stored); setPaymentSaved(true);
+      setTimeout(() => setPaymentSaved(false), 4000);
+    } catch (err) { setPaymentError(err.message); }
+    finally { setSavingPayment(false); }
+  };
+
   const logout = () => {
     localStorage.removeItem("restaurant");
     localStorage.removeItem("token");
@@ -278,6 +391,10 @@ export default function AdminDashboard() {
       </div>
     </div>
   );
+
+  const sym = restaurant.currencySymbol || "₹";
+  const tRate = restaurant.taxRate ?? 18;
+  const tName = restaurant.taxName || "GST";
 
   const statusTabs = ["All", ...STATUS_FLOW];
   const filteredOrders = statusFilter === "All" ? orders : orders.filter((o) => o.status === statusFilter);
@@ -305,6 +422,8 @@ export default function AdminDashboard() {
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
         input::placeholder { color: rgba(255,255,255,0.3); }
         input:focus { border-color: rgba(255,48,8,0.5) !important; }
+        select { color: #fff; }
+        select option { background: #161616; color: #fff; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
@@ -325,6 +444,7 @@ export default function AdminDashboard() {
             <div style={{ padding: "14px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
               <div style={{ fontSize: "0.7rem", color: "#666", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>{"Restaurant"}</div>
               <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{restaurant.name}</div>
+              <div style={{ fontSize: "0.68rem", color: "#555", marginTop: "2px" }}>{(COUNTRIES.find(c => c.country === restaurant.country)?.flag || "🌍") + " " + (restaurant.country || "India") + " · " + sym}</div>
             </div>
           )}
           <div style={{ flex: 1, padding: "12px 10px", display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -397,7 +517,7 @@ export default function AdminDashboard() {
                     { label: "Total Orders", value: orders.length, icon: "📦", color: "#818CF8" },
                     { label: "New", value: counts["New"] || 0, icon: "⚡", color: "#FFC107" },
                     { label: "Pending", value: orders.filter(o => o.status !== "Delivered").length, icon: "⏳", color: "#FB923C" },
-                    { label: "Revenue", value: "₹" + totalRevenue, icon: "💰", color: "#4ADE80" },
+                    { label: "Revenue", value: sym + totalRevenue, icon: "💰", color: "#4ADE80" },
                   ].map((stat) => (
                     <div key={stat.label} style={{ background: "#161616", borderRadius: "16px", padding: "20px", border: "1px solid rgba(255,255,255,0.06)", position: "relative", overflow: "hidden" }}>
                       <div style={{ position: "absolute", top: "-10px", right: "-10px", fontSize: "3rem", opacity: 0.06 }}>{stat.icon}</div>
@@ -447,8 +567,8 @@ export default function AdminDashboard() {
                       const nextStatus = STATUS_FLOW[STATUS_FLOW.indexOf(order.status) + 1];
                       const isUpdating = updatingId === order.id;
                       const subtotal = order.subtotal || order.items.reduce((s, i) => s + i.price * i.qty, 0);
-                      const gst = order.gst || Math.round(subtotal * 0.18);
-                      const total = order.total || subtotal + gst;
+                      const tax = order.gst || Math.round(subtotal * tRate / 100);
+                      const total = order.total || subtotal + tax;
                       return (
                         <div key={order.id} style={{ background: "#161616", borderRadius: "16px", padding: "18px", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "14px" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -456,6 +576,14 @@ export default function AdminDashboard() {
                               <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "#fff" }}>{order.id}</div>
                               <div style={{ fontSize: "0.72rem", color: "#555", marginTop: "3px" }}>{formatDate(order.timestamp) + " · " + formatTime(order.timestamp)}</div>
                               {order.customerName && <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "4px" }}>{order.customerName + " · " + order.customerPhone}</div>}
+                              {order.paymentMethod && (
+                                <div style={{ fontSize: "0.72rem", marginTop: "3px" }}>
+                                  {order.paymentMethod === "online" ?
+                                    <span style={{ color: "#818CF8", fontWeight: 600 }}>{"💳 Paid Online"}</span> :
+                                    <span style={{ color: "#FFC107", fontWeight: 600 }}>{"💵 Pay by Cash"}</span>
+                                  }
+                                </div>
+                              )}
                             </div>
                             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
                               <div style={{ background: "rgba(255,255,255,0.06)", color: "#fff", padding: "4px 10px", borderRadius: "8px", fontSize: "0.75rem", fontWeight: 700 }}>{"T" + order.tableNumber}</div>
@@ -468,12 +596,12 @@ export default function AdminDashboard() {
                             {order.items.map((item, i) => (
                               <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.82rem" }}>
                                 <span style={{ color: "#666" }}>{item.name + " × " + item.qty}</span>
-                                <span style={{ color: "#fff", fontWeight: 600 }}>{"₹" + item.price * item.qty}</span>
+                                <span style={{ color: "#fff", fontWeight: 600 }}>{sym + item.price * item.qty}</span>
                               </div>
                             ))}
                             <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "8px", marginTop: "4px", display: "flex", justifyContent: "space-between" }}>
-                              <span style={{ fontSize: "0.72rem", color: "#444" }}>{"GST: ₹" + gst}</span>
-                              <span style={{ fontSize: "1rem", fontWeight: 800, color: "#FF3008" }}>{"₹" + total}</span>
+                              <span style={{ fontSize: "0.72rem", color: "#444" }}>{tName + ": " + sym + tax}</span>
+                              <span style={{ fontSize: "1rem", fontWeight: 800, color: "#FF3008" }}>{sym + total}</span>
                             </div>
                           </div>
                           <div style={{ display: "flex", gap: "4px" }}>
@@ -510,7 +638,7 @@ export default function AdminDashboard() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
                   <div>
                     <h2 style={{ fontSize: "1.2rem", fontWeight: 800 }}>{"Menu Management"}</h2>
-                    <p style={{ color: "#555", fontSize: "0.82rem", marginTop: "4px" }}>{sections.length + " sections · " + menu.length + " items"}</p>
+                    <p style={{ color: "#555", fontSize: "0.82rem", marginTop: "4px" }}>{sections.length + " sections · " + menu.length + " items · " + sym + " " + currency}</p>
                   </div>
                   <button onClick={() => { setShowAddSection(true); setNewSectionName(""); }} style={{ background: "#FF3008", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "10px", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif" }}>{"+ Add Section"}</button>
                 </div>
@@ -566,7 +694,7 @@ export default function AdminDashboard() {
                               <div style={{ background: "rgba(255,48,8,0.05)", borderRadius: "12px", padding: "16px", marginBottom: "14px", border: "1px solid rgba(255,48,8,0.2)" }}>
                                 <div style={{ fontSize: "0.82rem", fontWeight: 700, marginBottom: "12px", color: "#FF3008" }}>{"Add Item to " + section.name}</div>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                                  {[{ label: "Item Name *", key: "name", placeholder: "e.g. Paneer Tikka", type: "text" }, { label: "Price (₹) *", key: "price", placeholder: "e.g. 150", type: "number" }, { label: "Description", key: "desc", placeholder: "Short description", type: "text" }, { label: "Tag", key: "tag", placeholder: "e.g. Bestseller", type: "text" }].map((f) => (
+                                  {[{ label: "Item Name *", key: "name", placeholder: "e.g. Paneer Tikka", type: "text" }, { label: "Price (" + sym + ") *", key: "price", placeholder: "e.g. 150", type: "number" }, { label: "Description", key: "desc", placeholder: "Short description", type: "text" }, { label: "Tag", key: "tag", placeholder: "e.g. Bestseller", type: "text" }].map((f) => (
                                     <div key={f.key}>
                                       <label style={{ fontSize: "0.68rem", color: "#555", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>{f.label}</label>
                                       <input style={inputStyle} type={f.type} placeholder={f.placeholder} value={newItem[f.key]} onChange={(e) => setNewItem({ ...newItem, [f.key]: e.target.value })} />
@@ -584,7 +712,7 @@ export default function AdminDashboard() {
                               <div style={{ background: "rgba(255,48,8,0.05)", borderRadius: "12px", padding: "16px", marginBottom: "14px", border: "1px solid rgba(255,48,8,0.2)" }}>
                                 <div style={{ fontSize: "0.82rem", fontWeight: 700, marginBottom: "12px", color: "#FF3008" }}>{"Edit Item"}</div>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                                  {[{ label: "Item Name *", key: "name", type: "text" }, { label: "Price (₹) *", key: "price", type: "number" }, { label: "Description", key: "desc", type: "text" }, { label: "Tag", key: "tag", type: "text" }].map((f) => (
+                                  {[{ label: "Item Name *", key: "name", type: "text" }, { label: "Price (" + sym + ") *", key: "price", type: "number" }, { label: "Description", key: "desc", type: "text" }, { label: "Tag", key: "tag", type: "text" }].map((f) => (
                                     <div key={f.key}>
                                       <label style={{ fontSize: "0.68rem", color: "#555", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>{f.label}</label>
                                       <input style={inputStyle} type={f.type} value={editItem[f.key] || ""} onChange={(e) => setEditItem({ ...editItem, [f.key]: e.target.value })} />
@@ -607,7 +735,7 @@ export default function AdminDashboard() {
                                     <div style={{ flex: 1 }}>
                                       <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>{item.name}</div>
                                       {item.desc && <div style={{ fontSize: "0.72rem", color: "#444", marginTop: "2px" }}>{item.desc}</div>}
-                                      <div style={{ fontSize: "0.88rem", fontWeight: 800, color: "#FF3008", marginTop: "3px" }}>{"₹" + item.price}</div>
+                                      <div style={{ fontSize: "0.88rem", fontWeight: 800, color: "#FF3008", marginTop: "3px" }}>{sym + item.price}</div>
                                     </div>
                                     {item.tag && <span style={{ background: "rgba(255,48,8,0.1)", color: "#FF3008", fontSize: "0.62rem", fontWeight: 700, padding: "2px 8px", borderRadius: "6px" }}>{item.tag}</span>}
                                     <div style={{ display: "flex", gap: "6px" }}>
@@ -639,7 +767,7 @@ export default function AdminDashboard() {
                         <div key={item.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 14px", background: "rgba(255,255,255,0.03)", borderRadius: "10px" }}>
                           <div style={{ flex: 1 }}>
                             <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>{item.name}</div>
-                            <div style={{ fontSize: "0.88rem", fontWeight: 800, color: "#FF3008", marginTop: "3px" }}>{"₹" + item.price}</div>
+                            <div style={{ fontSize: "0.88rem", fontWeight: 800, color: "#FF3008", marginTop: "3px" }}>{sym + item.price}</div>
                           </div>
                           <div style={{ display: "flex", gap: "6px" }}>
                             <button onClick={() => setEditItem({ ...item })} style={{ background: "rgba(255,255,255,0.06)", border: "none", padding: "6px 10px", borderRadius: "7px", fontWeight: 600, cursor: "pointer", fontSize: "0.72rem", color: "#666", fontFamily: "sans-serif" }}>{"Edit"}</button>
@@ -655,23 +783,112 @@ export default function AdminDashboard() {
 
             {/* SETTINGS TAB */}
             {tab === "settings" && (
-              <div className="fade-in" style={{ maxWidth: "540px" }}>
+              <div className="fade-in" style={{ maxWidth: "600px" }}>
                 <div style={{ marginBottom: "24px" }}>
                   <h2 style={{ fontSize: "1.2rem", fontWeight: 800 }}>{"Settings"}</h2>
-                  <p style={{ color: "#555", fontSize: "0.82rem", marginTop: "4px" }}>{"Manage your restaurant profile"}</p>
+                  <p style={{ color: "#555", fontSize: "0.82rem", marginTop: "4px" }}>{"Manage your restaurant profile, localization and payments"}</p>
                 </div>
-                <div style={{ background: "#161616", borderRadius: "16px", padding: "24px", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "18px" }}>
+
+                {/* Restaurant Info */}
+                <div style={{ background: "#161616", borderRadius: "16px", padding: "24px", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "18px", marginBottom: "20px" }}>
+                  <div style={{ fontSize: "0.72rem", color: "#FF3008", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px" }}>{"🏪 Restaurant Info"}</div>
                   <div>
                     <label style={{ fontSize: "0.68rem", color: "#555", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "6px" }}>{"Restaurant Name"}</label>
-                    <input style={inputStyle} value={settingName} onChange={(e) => setSettingName(e.target.value)} placeholder="Restaurant name" />
+                    <input style={inputStyle} value={settingName} onChange={(e) => setSettingName(e.target.value)} />
                   </div>
                   <div>
                     <label style={{ fontSize: "0.68rem", color: "#555", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "6px" }}>{"Number of Tables"}</label>
-                    <input style={inputStyle} type="number" value={settingTables} onChange={(e) => setSettingTables(e.target.value)} min="1" max="50" />
+                    <input style={inputStyle} type="number" value={settingTables} onChange={(e) => setSettingTables(e.target.value)} min="1" max="100" />
                   </div>
                   <button onClick={handleSaveSettings} style={{ background: settingSaved ? "rgba(74,222,128,0.15)" : "#FF3008", color: settingSaved ? "#4ADE80" : "#fff", border: settingSaved ? "1px solid rgba(74,222,128,0.3)" : "none", padding: "13px", borderRadius: "10px", fontWeight: 700, cursor: "pointer", fontSize: "0.9rem", fontFamily: "sans-serif", transition: "all 0.3s" }}>
-                    {settingSaved ? "✓ Saved!" : "Save Changes"}
+                    {settingSaved ? "✓ Saved!" : "Save Restaurant Info"}
                   </button>
+                </div>
+
+                {/* Localization */}
+                <div style={{ background: "#161616", borderRadius: "16px", padding: "24px", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "18px", marginBottom: "20px" }}>
+                  <div style={{ fontSize: "0.72rem", color: "#FFC107", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px" }}>{"🌍 Localization & Currency"}</div>
+                  <div>
+                    <label style={{ fontSize: "0.68rem", color: "#555", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "6px" }}>{"Country"}</label>
+                    <select value={country} onChange={(e) => {
+                      const selected = COUNTRIES.find(c => c.country === e.target.value);
+                      if (selected) { setCountry(selected.country); setCurrency(selected.currency); setCurrencySymbol(selected.symbol); setTaxName(selected.taxName); setTaxRate(selected.taxRate); setTimezone(selected.timezone); }
+                    }} style={{ ...inputStyle, cursor: "pointer" }}>
+                      {COUNTRIES.map((c) => (
+                        <option key={c.country} value={c.country}>{c.flag + " " + c.country + " (" + c.symbol + " " + c.currency + ")"}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div>
+                      <label style={{ fontSize: "0.68rem", color: "#555", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "6px" }}>{"Currency Code"}</label>
+                      <input style={inputStyle} value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder="INR, USD, EUR..." />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "0.68rem", color: "#555", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "6px" }}>{"Currency Symbol"}</label>
+                      <input style={inputStyle} value={currencySymbol} onChange={(e) => setCurrencySymbol(e.target.value)} placeholder="₹, $, €, £..." />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "0.68rem", color: "#555", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "6px" }}>{"Tax Name"}</label>
+                      <input style={inputStyle} value={taxName} onChange={(e) => setTaxName(e.target.value)} placeholder="GST, VAT, Tax..." />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "0.68rem", color: "#555", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "6px" }}>{"Tax Rate (%)"}</label>
+                      <input style={inputStyle} type="number" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} placeholder="18" min="0" max="30" />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "0.68rem", color: "#555", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "6px" }}>{"Timezone"}</label>
+                    <select value={timezone} onChange={(e) => setTimezone(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
+                      {TIMEZONES.map((tz) => (
+                        <option key={tz.value} value={tz.value}>{tz.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ background: "rgba(255,193,7,0.05)", border: "1px solid rgba(255,193,7,0.15)", borderRadius: "10px", padding: "14px" }}>
+                    <div style={{ fontSize: "0.68rem", color: "#FFC107", fontWeight: 600, marginBottom: "8px", textTransform: "uppercase", letterSpacing: "1px" }}>{"Preview"}</div>
+                    <div style={{ fontSize: "0.85rem", color: "#888", display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <span>{"Item Price: "}<strong style={{ color: "#fff" }}>{currencySymbol + "150"}</strong></span>
+                      <span>{taxName + " (" + taxRate + "%): "}<strong style={{ color: "#fff" }}>{currencySymbol + Math.round(150 * Number(taxRate) / 100)}</strong></span>
+                      <span>{"Total: "}<strong style={{ color: "#FF3008" }}>{currencySymbol + (150 + Math.round(150 * Number(taxRate) / 100))}</strong></span>
+                    </div>
+                  </div>
+                  <button onClick={handleSaveLocalization} disabled={saving} style={{ background: saving ? "#333" : "#FFC107", color: saving ? "#666" : "#000", border: "none", padding: "13px", borderRadius: "10px", fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", fontSize: "0.9rem", fontFamily: "sans-serif" }}>
+                    {saving ? "Saving..." : "🌍 Save Localization Settings"}
+                  </button>
+                </div>
+
+                {/* Payment Settings */}
+                <div style={{ background: "#161616", borderRadius: "16px", padding: "24px", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "18px" }}>
+                  <div style={{ fontSize: "0.72rem", color: "#818CF8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px" }}>{"💳 Payment Setup (Razorpay)"}</div>
+                  <p style={{ fontSize: "0.75rem", color: "#555", lineHeight: 1.6 }}>{"Customers pay directly to your account. Get your keys from "}<a href="https://razorpay.com" target="_blank" rel="noreferrer" style={{ color: "#818CF8" }}>{"razorpay.com"}</a></p>
+                  <div style={{ background: "rgba(129,140,248,0.05)", border: "1px solid rgba(129,140,248,0.15)", borderRadius: "12px", padding: "14px" }}>
+                    <div style={{ fontSize: "0.72rem", color: "#818CF8", fontWeight: 600, marginBottom: "6px" }}>{"How to get keys:"}</div>
+                    <div style={{ fontSize: "0.72rem", color: "#555", lineHeight: 1.8 }}>
+                      {"1. Go to razorpay.com → Sign up"}<br />
+                      {"2. Settings → API Keys → Generate Key"}<br />
+                      {"3. Copy Key ID and Key Secret below"}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "0.68rem", color: "#555", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "6px" }}>{"Razorpay Key ID"}</label>
+                    <input style={inputStyle} value={razorpayKeyId} onChange={(e) => setRazorpayKeyId(e.target.value)} placeholder="rzp_live_xxxxxxxxxxxxxxxx" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "0.68rem", color: "#555", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1px", display: "block", marginBottom: "6px" }}>{"Razorpay Key Secret"}</label>
+                    <input style={{ ...inputStyle, fontFamily: "monospace" }} type="password" value={razorpayKeySecret} onChange={(e) => setRazorpayKeySecret(e.target.value)} placeholder="••••••••••••••••" />
+                  </div>
+                  {paymentSaved && <div style={{ background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: "10px", padding: "12px", fontSize: "0.82rem", color: "#4ADE80", fontWeight: 600 }}>{"✓ Payment settings saved!"}</div>}
+                  {paymentError && <div style={{ background: "rgba(255,48,8,0.1)", border: "1px solid rgba(255,48,8,0.2)", borderRadius: "10px", padding: "12px", fontSize: "0.82rem", color: "#FF3008" }}>{paymentError}</div>}
+                  <button onClick={handleSavePayment} disabled={savingPayment} style={{ background: savingPayment ? "#333" : "#818CF8", color: savingPayment ? "#666" : "#fff", border: "none", padding: "13px", borderRadius: "10px", fontWeight: 700, cursor: savingPayment ? "not-allowed" : "pointer", fontSize: "0.9rem", fontFamily: "sans-serif" }}>
+                    {savingPayment ? "Saving..." : "💳 Save Payment Settings"}
+                  </button>
+                  {restaurant.razorpayKeyId && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.78rem", color: "#4ADE80" }}>
+                      <div style={{ width: "8px", height: "8px", background: "#4ADE80", borderRadius: "50%" }} />
+                      {"Payment is active — customers can pay online!"}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -682,7 +899,7 @@ export default function AdminDashboard() {
                 <div style={{ marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
                   <div>
                     <h2 style={{ fontSize: "1.2rem", fontWeight: 800 }}>{"QR Codes"}</h2>
-                    <p style={{ color: "#555", fontSize: "0.82rem", marginTop: "4px" }}>{"Auto-generated QR codes for each table — scan to order"}</p>
+                    <p style={{ color: "#555", fontSize: "0.82rem", marginTop: "4px" }}>{"Auto-generated QR codes for each table"}</p>
                   </div>
                   <button onClick={() => {
                     Array.from({ length: Number(restaurant.tableCount) }, (_, i) => i + 1).forEach((t) => {
@@ -708,7 +925,7 @@ export default function AdminDashboard() {
                         }
                       }, t * 300);
                     });
-                  }} style={{ background: "#FF3008", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "10px", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", display: "flex", alignItems: "center", gap: "6px" }}>
+                  }} style={{ background: "#FF3008", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "10px", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif" }}>
                     {"⬇️ Download All"}
                   </button>
                 </div>
@@ -735,82 +952,44 @@ function QRCard({ table, url, restaurantName }) {
 
   useEffect(() => {
     if (!url || !containerRef.current) return;
-
-    // Load QRCode.js from CDN
-    if (window.QRCode) {
-      generateQR();
-    } else {
+    if (window.QRCode) { generateQR(); }
+    else {
       const script = document.createElement("script");
       script.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
       script.onload = generateQR;
       document.head.appendChild(script);
     }
-
     function generateQR() {
+      if (!containerRef.current) return;
       containerRef.current.innerHTML = "";
-      new window.QRCode(containerRef.current, {
-        text: url,
-        width: 160,
-        height: 160,
-        colorDark: "#000000",
-        colorLight: "#ffffff",
-        correctLevel: window.QRCode.CorrectLevel.H,
-      });
+      new window.QRCode(containerRef.current, { text: url, width: 160, height: 160, colorDark: "#000000", colorLight: "#ffffff", correctLevel: window.QRCode.CorrectLevel.H });
       setQrReady(true);
     }
   }, [url]);
 
-  const buildPrintCanvas = () => {
+  const buildCanvas = () => {
     const img = containerRef.current?.querySelector("img") || containerRef.current?.querySelector("canvas");
     if (!img) return null;
-
     const dlCanvas = document.createElement("canvas");
     dlCanvas.width = 320; dlCanvas.height = 420;
     const ctx = dlCanvas.getContext("2d");
-
-    // White background
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, 320, 420);
-
-    // Red header
-    ctx.fillStyle = "#FF3008";
-    ctx.fillRect(0, 0, 320, 70);
-
-    // Restaurant name
-    ctx.fillStyle = "#fff";
-    ctx.font = "bold 20px sans-serif";
-    ctx.textAlign = "center";
-    const name = restaurantName.length > 20 ? restaurantName.substring(0, 20) + "..." : restaurantName;
-    ctx.fillText(name, 160, 32);
-
-    ctx.font = "15px sans-serif";
-    ctx.fillText("Table " + table, 160, 56);
-
-    // QR code
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, 320, 420);
+    ctx.fillStyle = "#FF3008"; ctx.fillRect(0, 0, 320, 70);
+    ctx.fillStyle = "#fff"; ctx.font = "bold 20px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText(restaurantName.length > 20 ? restaurantName.substring(0, 20) + "..." : restaurantName, 160, 32);
+    ctx.font = "15px sans-serif"; ctx.fillText("Table " + table, 160, 56);
     const tempCanvas = document.createElement("canvas");
     tempCanvas.width = 200; tempCanvas.height = 200;
-    const tempCtx = tempCanvas.getContext("2d");
-    tempCtx.drawImage(img, 0, 0, 200, 200);
+    tempCanvas.getContext("2d").drawImage(img, 0, 0, 200, 200);
     ctx.drawImage(tempCanvas, 60, 90, 200, 200);
-
-    // Bottom text
-    ctx.fillStyle = "#111";
-    ctx.font = "bold 18px sans-serif";
-    ctx.fillText("Scan to Order", 160, 322);
-
-    ctx.fillStyle = "#888";
-    ctx.font = "12px sans-serif";
-    ctx.fillText("No app needed · Just scan & order", 160, 346);
-
-    ctx.fillStyle = "#FF3008";
-    ctx.font = "bold 14px sans-serif";
-    ctx.fillText("Powered by Platfo", 160, 400);
-
+    ctx.fillStyle = "#111"; ctx.font = "bold 18px sans-serif"; ctx.fillText("Scan to Order", 160, 322);
+    ctx.fillStyle = "#888"; ctx.font = "12px sans-serif"; ctx.fillText("No app needed · Just scan & order", 160, 346);
+    ctx.fillStyle = "#FF3008"; ctx.font = "bold 14px sans-serif"; ctx.fillText("Powered by Platfo", 160, 400);
     return dlCanvas;
   };
 
   const handleDownload = () => {
-    const dlCanvas = buildPrintCanvas();
+    const dlCanvas = buildCanvas();
     if (!dlCanvas) return;
     const link = document.createElement("a");
     link.download = restaurantName + "-Table-" + table + "-QR.png";
@@ -819,29 +998,11 @@ function QRCard({ table, url, restaurantName }) {
   };
 
   const handlePrint = () => {
-    const dlCanvas = buildPrintCanvas();
+    const dlCanvas = buildCanvas();
     if (!dlCanvas) return;
     const img = dlCanvas.toDataURL("image/png");
     const win = window.open("", "_blank");
-    win.document.write(`
-      <html>
-      <head>
-        <title>Table ${table} QR Code</title>
-        <style>
-          body { margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #f5f5f5; }
-          img { max-width: 320px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border-radius: 16px; }
-          @media print { body { background: white; } }
-        </style>
-      </head>
-      <body><img src="${img}" onload="window.print()"/></body>
-      </html>
-    `);
-  };
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    win.document.write(`<html><head><title>Table ${table} QR</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f5f5f5;}img{max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,0.15);border-radius:16px;}@media print{body{background:white;}}</style></head><body><img src="${img}" onload="window.print()"/></body></html>`);
   };
 
   return (
@@ -850,21 +1011,15 @@ function QRCard({ table, url, restaurantName }) {
         <div style={{ background: "#FF3008", color: "#fff", width: "32px", height: "32px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.85rem" }}>{table}</div>
         <span style={{ fontSize: "0.78rem", color: "#555", fontWeight: 600 }}>{"Table " + table}</span>
       </div>
-
-      {/* Real QR Code */}
       <div style={{ background: "#fff", borderRadius: "12px", padding: "10px", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "180px" }}>
         {!qrReady && <div style={{ color: "#ccc", fontSize: "0.75rem" }}>{"Generating..."}</div>}
-        <div ref={containerRef} style={{ display: qrReady ? "block" : "none" }} />
+        <div ref={containerRef} id={"qr-canvas-" + table} style={{ display: qrReady ? "block" : "none" }} />
       </div>
-
       <div style={{ fontSize: "0.62rem", color: "#444", wordBreak: "break-all", textAlign: "center", lineHeight: 1.4 }}>{url}</div>
-
       <div style={{ display: "flex", gap: "6px", width: "100%" }}>
         <button onClick={handleDownload} style={{ flex: 1, background: "rgba(255,48,8,0.1)", border: "1px solid rgba(255,48,8,0.2)", color: "#FF3008", padding: "8px 4px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "0.68rem", fontFamily: "sans-serif" }}>{"⬇️ Save"}</button>
         <button onClick={handlePrint} style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#888", padding: "8px 4px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "0.68rem", fontFamily: "sans-serif" }}>{"🖨️ Print"}</button>
-        <button onClick={handleCopy} style={{ flex: 1, background: copied ? "rgba(74,222,128,0.1)" : "rgba(255,255,255,0.04)", border: copied ? "1px solid rgba(74,222,128,0.2)" : "1px solid rgba(255,255,255,0.08)", color: copied ? "#4ADE80" : "#888", padding: "8px 4px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "0.68rem", fontFamily: "sans-serif", transition: "all 0.2s" }}>
-          {copied ? "✓ Copied" : "📋 Copy"}
-        </button>
+        <button onClick={() => { navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{ flex: 1, background: copied ? "rgba(74,222,128,0.1)" : "rgba(255,255,255,0.04)", border: copied ? "1px solid rgba(74,222,128,0.2)" : "1px solid rgba(255,255,255,0.08)", color: copied ? "#4ADE80" : "#888", padding: "8px 4px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "0.68rem", fontFamily: "sans-serif", transition: "all 0.2s" }}>{copied ? "✓ Copied" : "📋 Copy"}</button>
       </div>
     </div>
   );
