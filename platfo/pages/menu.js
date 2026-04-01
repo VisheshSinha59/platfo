@@ -55,18 +55,14 @@ export default function Menu() {
     return item ? item.qty : 0;
   };
 
-  const sym = restaurant?.currencySymbol || "₹";
-  const tRate = restaurant?.taxRate ?? 18;
-  const tName = restaurant?.taxName || "GST";
-
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
-  const tax = Math.round(subtotal * tRate / 100);
-  const total = subtotal + tax;
+  const gst = Math.round(subtotal * 0.18);
+  const total = subtotal + gst;
   const totalItems = cart.reduce((s, i) => s + i.qty, 0);
 
   const handleOrder = async (paymentMethod = "cash", paymentId = null) => {
     if (!customerName.trim()) { setError("Please enter your name."); return; }
-    if (!customerPhone.trim() || customerPhone.length < 5) { setError("Please enter a valid phone number."); return; }
+    if (!customerPhone.trim() || customerPhone.length < 10) { setError("Please enter a valid 10-digit phone number."); return; }
     setOrdering(true); setError("");
     try {
       const clientToken = Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -89,7 +85,7 @@ export default function Menu() {
 
   const handleRazorpayPayment = async () => {
     if (!customerName.trim()) { setError("Please enter your name."); return; }
-    if (!customerPhone.trim() || customerPhone.length < 5) { setError("Please enter a valid phone number."); return; }
+    if (!customerPhone.trim() || customerPhone.length < 10) { setError("Please enter a valid phone number."); return; }
     setError("");
     try {
       const res = await fetch("/api/payment", {
@@ -112,7 +108,7 @@ export default function Menu() {
       const options = {
         key: data.keyId,
         amount: data.order.amount,
-        currency: restaurant.currency || "INR",
+        currency: "INR",
         name: restaurant.name,
         description: "Table " + table + " Order",
         order_id: data.order.id,
@@ -176,16 +172,16 @@ export default function Menu() {
           {cart.map((item, i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", fontSize: "0.9rem" }}>
               <span style={{ color: "#888" }}>{item.name}<span style={{ color: "#555", fontSize: "0.8rem" }}>{" × " + item.qty}</span></span>
-              <span style={{ color: "#fff", fontWeight: 600 }}>{sym + item.price * item.qty}</span>
+              <span style={{ color: "#fff", fontWeight: 600 }}>{"₹" + item.price * item.qty}</span>
             </div>
           ))}
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "12px", marginTop: "4px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.82rem", color: "#555", marginBottom: "6px" }}>
-              <span>{tName + " (" + tRate + "%)"}</span><span>{sym + tax}</span>
+              <span>{"GST (18%)"}</span><span>{"₹" + gst}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, fontSize: "1.1rem" }}>
               <span>{"Total"}</span>
-              <span style={{ color: "#FF3008" }}>{sym + total}</span>
+              <span style={{ color: "#FF3008" }}>{"₹" + total}</span>
             </div>
           </div>
         </div>
@@ -209,7 +205,7 @@ export default function Menu() {
           <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#fff" }}>{item.name}</div>
           {item.desc && <div style={{ fontSize: "0.75rem", color: "#555", marginTop: "3px", lineHeight: 1.4 }}>{item.desc}</div>}
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px" }}>
-            <span style={{ fontWeight: 800, color: "#FF3008", fontSize: "1rem" }}>{sym + item.price}</span>
+            <span style={{ fontWeight: 800, color: "#FF3008", fontSize: "1rem" }}>{"₹" + item.price}</span>
             {item.tag && <span style={{ background: "rgba(255,48,8,0.1)", color: "#FF3008", fontSize: "0.62rem", fontWeight: 700, padding: "2px 8px", borderRadius: "6px", border: "1px solid rgba(255,48,8,0.2)" }}>{item.tag}</span>}
           </div>
         </div>
@@ -253,13 +249,12 @@ export default function Menu() {
               <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" }}>
                 <div style={{ width: "6px", height: "6px", background: "#4ADE80", borderRadius: "50%", animation: "pulse 2s infinite" }} />
                 <span style={{ color: "#555", fontSize: "0.75rem" }}>{"Table " + table + " · Open for orders"}</span>
-                {restaurant.country && <span style={{ fontSize: "0.72rem", color: "#444" }}>{"· " + (restaurant.currencySymbol || "₹") + " " + (restaurant.currency || "INR")}</span>}
               </div>
             </div>
             {cart.length > 0 && (
               <button onClick={() => setShowCart(true)} style={{ background: "#FF3008", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 4px 14px rgba(255,48,8,0.3)" }}>
                 {"🛒 " + totalItems}
-                <span style={{ background: "rgba(255,255,255,0.2)", padding: "2px 8px", borderRadius: "6px" }}>{sym + total}</span>
+                <span style={{ background: "rgba(255,255,255,0.2)", padding: "2px 8px", borderRadius: "6px" }}>{"₹" + total}</span>
               </button>
             )}
           </div>
@@ -330,26 +325,26 @@ export default function Menu() {
                     <div key={item.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 14px", background: "rgba(255,255,255,0.03)", borderRadius: "12px" }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{item.name}</div>
-                        <div style={{ color: "#FF3008", fontWeight: 700, fontSize: "0.85rem", marginTop: "2px" }}>{sym + item.price}</div>
+                        <div style={{ color: "#FF3008", fontWeight: 700, fontSize: "0.85rem", marginTop: "2px" }}>{"₹" + item.price}</div>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                         <button onClick={() => removeFromCart(item.id)} style={{ width: "28px", height: "28px", background: "rgba(255,255,255,0.08)", color: "#fff", border: "none", borderRadius: "7px", fontSize: "1rem", cursor: "pointer", fontFamily: "sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>{"−"}</button>
                         <span style={{ fontWeight: 800, minWidth: "20px", textAlign: "center", color: "#FF3008" }}>{item.qty}</span>
                         <button onClick={() => addToCart(item)} style={{ width: "28px", height: "28px", background: "#FF3008", color: "#fff", border: "none", borderRadius: "7px", fontSize: "1rem", cursor: "pointer", fontFamily: "sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>{"+"}</button>
                       </div>
-                      <div style={{ fontWeight: 700, fontSize: "0.9rem", minWidth: "60px", textAlign: "right" }}>{sym + item.price * item.qty}</div>
+                      <div style={{ fontWeight: 700, fontSize: "0.9rem", minWidth: "60px", textAlign: "right" }}>{"₹" + item.price * item.qty}</div>
                     </div>
                   ))}
                 </div>
                 <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: "12px", padding: "16px", marginBottom: "20px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", color: "#555", marginBottom: "8px" }}>
-                    <span>{"Subtotal"}</span><span style={{ color: "#fff" }}>{sym + subtotal}</span>
+                    <span>{"Subtotal"}</span><span style={{ color: "#fff" }}>{"₹" + subtotal}</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", color: "#555", marginBottom: "12px", paddingBottom: "12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                    <span>{tName + " (" + tRate + "%)"}</span><span style={{ color: "#fff" }}>{sym + tax}</span>
+                    <span>{"GST (18%)"}</span><span style={{ color: "#fff" }}>{"₹" + gst}</span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, fontSize: "1.1rem" }}>
-                    <span>{"Total"}</span><span style={{ color: "#FF3008" }}>{sym + total}</span>
+                    <span>{"Total"}</span><span style={{ color: "#FF3008" }}>{"₹" + total}</span>
                   </div>
                 </div>
 
@@ -360,37 +355,22 @@ export default function Menu() {
                 ) : (
                   <div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "14px" }}>
-                      <input
-                        placeholder="Your Name *"
-                        value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
-                        style={{ padding: "14px 16px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: "0.95rem", outline: "none", fontFamily: "sans-serif" }}
-                      />
-                      <input
-                        placeholder="Phone Number *"
-                        value={customerPhone}
-                        onChange={(e) => setCustomerPhone(e.target.value)}
-                        type="tel"
-                        style={{ padding: "14px 16px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: "0.95rem", outline: "none", fontFamily: "sans-serif" }}
-                      />
+                      <input placeholder="Your Name *" value={customerName} onChange={(e) => setCustomerName(e.target.value)} style={{ padding: "14px 16px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: "0.95rem", outline: "none", fontFamily: "sans-serif" }} />
+                      <input placeholder="Phone Number * (10 digits)" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} type="tel" maxLength={10} style={{ padding: "14px 16px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: "0.95rem", outline: "none", fontFamily: "sans-serif" }} />
                     </div>
-
-                    {error && <div style={{ color: "#FF6B6B", fontSize: "0.82rem", marginBottom: "12px" }}>{"⚠️ " + error}</div>}
-
+                    {error && <div style={{ color: "#FF6B6B", fontSize: "0.82rem", marginBottom: "10px" }}>{"⚠️ " + error}</div>}
                     <div style={{ fontSize: "0.72rem", color: "#555", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "10px", fontWeight: 600 }}>{"Choose Payment"}</div>
-
                     <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
                       {restaurant.razorpayKeyId && (
                         <button onClick={handleRazorpayPayment} disabled={ordering} style={{ width: "100%", background: "rgba(129,140,248,0.15)", color: "#818CF8", border: "1px solid rgba(129,140,248,0.3)", padding: "16px", borderRadius: "12px", fontWeight: 700, cursor: ordering ? "not-allowed" : "pointer", fontFamily: "sans-serif", fontSize: "0.95rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                          {"💳 Pay Online · " + sym + total}
+                          {"💳 Pay Online · ₹" + total}
                           <span style={{ fontSize: "0.72rem", opacity: 0.7 }}>{"(UPI, Card, Netbanking)"}</span>
                         </button>
                       )}
                       <button onClick={() => handleOrder("cash")} disabled={ordering} style={{ width: "100%", background: "rgba(74,222,128,0.1)", color: "#4ADE80", border: "1px solid rgba(74,222,128,0.25)", padding: "16px", borderRadius: "12px", fontWeight: 700, cursor: ordering ? "not-allowed" : "pointer", fontFamily: "sans-serif", fontSize: "0.95rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                        {"💵 Pay by Cash · " + sym + total}
+                        {"💵 Pay by Cash · ₹" + total}
                       </button>
                     </div>
-
                     <button onClick={() => setShowCustomerForm(false)} style={{ width: "100%", background: "rgba(255,255,255,0.04)", color: "#666", border: "1px solid rgba(255,255,255,0.08)", padding: "12px", borderRadius: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.88rem" }}>{"← Back"}</button>
                   </div>
                 )}
@@ -406,7 +386,7 @@ export default function Menu() {
               <button onClick={() => setShowCart(true)} style={{ width: "100%", background: "#FF3008", color: "#fff", border: "none", padding: "16px", borderRadius: "14px", fontSize: "1rem", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 4px 20px rgba(255,48,8,0.4)" }}>
                 <span style={{ background: "rgba(255,255,255,0.2)", padding: "4px 10px", borderRadius: "8px", fontSize: "0.85rem" }}>{totalItems + " items"}</span>
                 <span>{"View Cart →"}</span>
-                <span style={{ fontWeight: 800 }}>{sym + total}</span>
+                <span style={{ fontWeight: 800 }}>{"₹" + total}</span>
               </button>
             </div>
           </div>
@@ -415,3 +395,4 @@ export default function Menu() {
       </div>
     </>
   );
+}
