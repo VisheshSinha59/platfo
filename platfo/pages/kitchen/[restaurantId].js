@@ -11,7 +11,6 @@ export default function Kitchen() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
 
-  const STATUS_FLOW = ["New", "Preparing", "Ready", "Delivered"];
   const STATUS_COLOR = {
     New:       { bg: "rgba(255,193,7,0.15)", text: "#FFC107", dot: "#FFC107", border: "rgba(255,193,7,0.3)" },
     Preparing: { bg: "rgba(129,140,248,0.15)", text: "#818CF8", dot: "#818CF8", border: "rgba(129,140,248,0.3)" },
@@ -79,9 +78,6 @@ export default function Kitchen() {
     return diff + " mins ago";
   };
 
-  const sym = restaurant?.currencySymbol || "₹";
-  const tRate = restaurant?.taxRate ?? 18;
-
   const newOrders = orders.filter((o) => o.status === "New");
   const preparingOrders = orders.filter((o) => o.status === "Preparing");
   const readyOrders = orders.filter((o) => o.status === "Ready");
@@ -109,10 +105,7 @@ export default function Kitchen() {
             <div style={{ width: "36px", height: "36px", background: "#FF3008", borderRadius: "9px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", boxShadow: "0 0 16px rgba(255,48,8,0.4)" }}>{"👨‍🍳"}</div>
             <div>
               <div style={{ fontWeight: 800, fontSize: "1rem" }}>{restaurant?.name || "Kitchen Display"}</div>
-              <div style={{ fontSize: "0.7rem", color: "#555", marginTop: "1px", display: "flex", alignItems: "center", gap: "8px" }}>
-                {"Kitchen Display System"}
-                {restaurant?.country && <span style={{ color: "#444" }}>{"· " + sym + " " + (restaurant?.currency || "")}</span>}
-              </div>
+              <div style={{ fontSize: "0.7rem", color: "#555", marginTop: "1px" }}>{"Kitchen Display System"}</div>
             </div>
           </div>
 
@@ -127,12 +120,10 @@ export default function Kitchen() {
                 <div style={{ fontSize: "0.62rem", color: "#555", textTransform: "uppercase", letterSpacing: "0.5px" }}>{s.label}</div>
               </div>
             ))}
-
             <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.15)", borderRadius: "8px", padding: "6px 12px" }}>
               <div style={{ width: "6px", height: "6px", background: "#4ADE80", borderRadius: "50%", animation: "pulse 2s infinite" }} />
               <span style={{ fontSize: "0.72rem", color: "#4ADE80", fontWeight: 600 }}>{"Live · 5s"}</span>
             </div>
-
             {lastUpdated && (
               <div style={{ fontSize: "0.7rem", color: "#444" }}>
                 {lastUpdated.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
@@ -165,7 +156,7 @@ export default function Kitchen() {
                     <p style={{ fontSize: "0.82rem" }}>{"No new orders"}</p>
                   </div>
                 ) : newOrders.map((order) => (
-                  <OrderCard key={order.id} order={order} sc={STATUS_COLOR["New"]} nextStatus="Preparing" updateStatus={updateStatus} updatingId={updatingId} formatTime={formatTime} getTimeDiff={getTimeDiff} sym={sym} tRate={tRate} />
+                  <OrderCard key={order.id} order={order} sc={STATUS_COLOR["New"]} nextStatus="Preparing" updateStatus={updateStatus} updatingId={updatingId} formatTime={formatTime} getTimeDiff={getTimeDiff} />
                 ))}
               </div>
             </div>
@@ -184,7 +175,7 @@ export default function Kitchen() {
                     <p style={{ fontSize: "0.82rem" }}>{"Nothing preparing"}</p>
                   </div>
                 ) : preparingOrders.map((order) => (
-                  <OrderCard key={order.id} order={order} sc={STATUS_COLOR["Preparing"]} nextStatus="Ready" updateStatus={updateStatus} updatingId={updatingId} formatTime={formatTime} getTimeDiff={getTimeDiff} sym={sym} tRate={tRate} />
+                  <OrderCard key={order.id} order={order} sc={STATUS_COLOR["Preparing"]} nextStatus="Ready" updateStatus={updateStatus} updatingId={updatingId} formatTime={formatTime} getTimeDiff={getTimeDiff} />
                 ))}
               </div>
             </div>
@@ -203,7 +194,7 @@ export default function Kitchen() {
                     <p style={{ fontSize: "0.82rem" }}>{"Nothing ready yet"}</p>
                   </div>
                 ) : readyOrders.map((order) => (
-                  <OrderCard key={order.id} order={order} sc={STATUS_COLOR["Ready"]} nextStatus="Delivered" updateStatus={updateStatus} updatingId={updatingId} formatTime={formatTime} getTimeDiff={getTimeDiff} sym={sym} tRate={tRate} />
+                  <OrderCard key={order.id} order={order} sc={STATUS_COLOR["Ready"]} nextStatus="Delivered" updateStatus={updateStatus} updatingId={updatingId} formatTime={formatTime} getTimeDiff={getTimeDiff} />
                 ))}
               </div>
             </div>
@@ -215,11 +206,11 @@ export default function Kitchen() {
   );
 }
 
-function OrderCard({ order, sc, nextStatus, updateStatus, updatingId, formatTime, getTimeDiff, sym, tRate }) {
+function OrderCard({ order, sc, nextStatus, updateStatus, updatingId, formatTime, getTimeDiff }) {
   const isUpdating = updatingId === order.id;
   const subtotal = order.subtotal || order.items.reduce((s, i) => s + i.price * i.qty, 0);
-  const tax = order.gst || Math.round(subtotal * tRate / 100);
-  const total = order.total || subtotal + tax;
+  const gst = order.gst || Math.round(subtotal * 0.18);
+  const total = order.total || subtotal + gst;
 
   return (
     <div className="order-card" style={{ background: "#161616", borderRadius: "14px", padding: "16px", marginBottom: "10px", border: "1px solid " + sc.border }}>
@@ -247,12 +238,12 @@ function OrderCard({ order, sc, nextStatus, updateStatus, updatingId, formatTime
               <span style={{ background: sc.bg, color: sc.text, fontWeight: 800, fontSize: "0.78rem", padding: "2px 7px", borderRadius: "6px", minWidth: "24px", textAlign: "center" }}>{item.qty}</span>
               <span style={{ fontSize: "0.88rem", fontWeight: 600 }}>{item.name}</span>
             </div>
-            <span style={{ fontSize: "0.78rem", color: "#555" }}>{sym + item.price * item.qty}</span>
+            <span style={{ fontSize: "0.78rem", color: "#555" }}>{"₹" + item.price * item.qty}</span>
           </div>
         ))}
         <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "8px", marginTop: "6px", display: "flex", justifyContent: "space-between" }}>
           <span style={{ fontSize: "0.72rem", color: "#444" }}>{"Total"}</span>
-          <span style={{ fontWeight: 800, color: sc.text, fontSize: "0.88rem" }}>{sym + total}</span>
+          <span style={{ fontWeight: 800, color: sc.text, fontSize: "0.88rem" }}>{"₹" + total}</span>
         </div>
       </div>
 
