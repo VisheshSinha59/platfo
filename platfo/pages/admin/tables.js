@@ -39,11 +39,13 @@ export default function Tables() {
     </div>
   );
 
+  const sym = restaurant.currencySymbol || "₹";
+  const tRate = restaurant.taxRate ?? 18;
+  const tName = restaurant.taxName || "GST";
   const tableCount = restaurant.tableCount || 10;
   const tables = Array.from({ length: tableCount }, (_, i) => i + 1);
 
   const getTableOrders = (tableNum) => orders.filter((o) => o.tableNumber === tableNum);
-
   const getTableRevenue = (tableNum) => getTableOrders(tableNum).filter((o) => o.status === "Delivered").reduce((s, o) => s + (o.total || 0), 0);
 
   const getTableStatus = (tableNum) => {
@@ -56,11 +58,11 @@ export default function Tables() {
   };
 
   const statusConfig = {
-    new:      { color: "#FFC107", bg: "rgba(255,193,7,0.1)",   label: "New Order",  border: "rgba(255,193,7,0.3)" },
-    preparing:{ color: "#818CF8", bg: "rgba(129,140,248,0.1)", label: "Preparing",  border: "rgba(129,140,248,0.3)" },
-    ready:    { color: "#4ADE80", bg: "rgba(74,222,128,0.1)",  label: "Ready",      border: "rgba(74,222,128,0.3)" },
-    served:   { color: "#94A3B8", bg: "rgba(148,163,184,0.1)", label: "Served",     border: "rgba(148,163,184,0.3)" },
-    empty:    { color: "#333",    bg: "rgba(255,255,255,0.02)", label: "Empty",      border: "rgba(255,255,255,0.06)" },
+    new:       { color: "#FFC107", bg: "rgba(255,193,7,0.1)",    label: "New Order", border: "rgba(255,193,7,0.3)" },
+    preparing: { color: "#818CF8", bg: "rgba(129,140,248,0.1)", label: "Preparing",  border: "rgba(129,140,248,0.3)" },
+    ready:     { color: "#4ADE80", bg: "rgba(74,222,128,0.1)",   label: "Ready",      border: "rgba(74,222,128,0.3)" },
+    served:    { color: "#94A3B8", bg: "rgba(148,163,184,0.1)", label: "Served",      border: "rgba(148,163,184,0.3)" },
+    empty:     { color: "#333",    bg: "rgba(255,255,255,0.02)", label: "Empty",       border: "rgba(255,255,255,0.06)" },
   };
 
   const totalRevenue = orders.filter((o) => o.status === "Delivered").reduce((s, o) => s + (o.total || 0), 0);
@@ -90,6 +92,7 @@ export default function Tables() {
         body { background: #0F0F0F; font-family: 'Segoe UI', sans-serif; }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
         input::placeholder { color: rgba(255,255,255,0.2); }
@@ -104,22 +107,23 @@ export default function Tables() {
             <button onClick={() => router.push("/admin/dashboard")} style={{ background: "rgba(255,255,255,0.06)", border: "none", color: "#888", width: "36px", height: "36px", borderRadius: "8px", cursor: "pointer", fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center" }}>{"←"}</button>
             <div>
               <div style={{ fontWeight: 800, fontSize: "1rem" }}>{"📋 Table History"}</div>
-              <div style={{ fontSize: "0.72rem", color: "#555", marginTop: "1px" }}>{restaurant.name}</div>
+              <div style={{ fontSize: "0.72rem", color: "#555", marginTop: "1px", display: "flex", alignItems: "center", gap: "8px" }}>
+                {restaurant.name}
+                {restaurant.country && <span style={{ color: "#444" }}>{"· " + sym + " " + (restaurant.currency || "")}</span>}
+              </div>
             </div>
           </div>
           <div style={{ display: "flex", gap: "10px" }}>
-            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "8px 16px", textAlign: "center" }}>
-              <div style={{ fontSize: "1rem", fontWeight: 800, color: "#4ADE80" }}>{"₹" + totalRevenue}</div>
-              <div style={{ fontSize: "0.65rem", color: "#555", textTransform: "uppercase", letterSpacing: "0.5px" }}>{"Revenue"}</div>
-            </div>
-            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "8px 16px", textAlign: "center" }}>
-              <div style={{ fontSize: "1rem", fontWeight: 800, color: "#FFC107" }}>{activeOrders}</div>
-              <div style={{ fontSize: "0.65rem", color: "#555", textTransform: "uppercase", letterSpacing: "0.5px" }}>{"Active"}</div>
-            </div>
-            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "8px 16px", textAlign: "center" }}>
-              <div style={{ fontSize: "1rem", fontWeight: 800, color: "#818CF8" }}>{orders.length}</div>
-              <div style={{ fontSize: "0.65rem", color: "#555", textTransform: "uppercase", letterSpacing: "0.5px" }}>{"Total"}</div>
-            </div>
+            {[
+              { label: "Revenue", value: sym + totalRevenue, color: "#4ADE80" },
+              { label: "Active", value: activeOrders, color: "#FFC107" },
+              { label: "Total", value: orders.length, color: "#818CF8" },
+            ].map((stat) => (
+              <div key={stat.label} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "8px 16px", textAlign: "center" }}>
+                <div style={{ fontSize: "1rem", fontWeight: 800, color: stat.color }}>{stat.value}</div>
+                <div style={{ fontSize: "0.65rem", color: "#555", textTransform: "uppercase", letterSpacing: "0.5px" }}>{stat.label}</div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -142,22 +146,24 @@ export default function Tables() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
               {loading ? (
                 Array.from({ length: tableCount }, (_, i) => (
-                  <div key={i} style={{ aspect: "1", background: "rgba(255,255,255,0.03)", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.06)", animation: "pulse 1.5s infinite" }} />
+                  <div key={i} style={{ aspectRatio: "1", background: "rgba(255,255,255,0.03)", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.06)" }} />
                 ))
               ) : (
                 tables.map((t) => {
                   const status = getTableStatus(t);
                   const conf = statusConfig[status];
                   const orderCount = getTableOrders(t).length;
+                  const tableRevenue = getTableRevenue(t);
                   const isSelected = selectedTable === t;
                   return (
                     <button key={t} onClick={() => setSelectedTable(isSelected ? null : t)}
                       style={{ aspectRatio: "1", background: isSelected ? "rgba(255,48,8,0.15)" : conf.bg, border: isSelected ? "2px solid #FF3008" : "1px solid " + conf.border, borderRadius: "12px", cursor: "pointer", fontFamily: "sans-serif", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "2px", transition: "all 0.2s", position: "relative" }}>
                       {status !== "empty" && (
-                        <div style={{ position: "absolute", top: "4px", right: "4px", width: "6px", height: "6px", background: conf.color, borderRadius: "50%" }} />
+                        <div style={{ position: "absolute", top: "4px", right: "4px", width: "6px", height: "6px", background: conf.color, borderRadius: "50%", animation: status === "new" ? "pulse 1s infinite" : "none" }} />
                       )}
                       <span style={{ fontWeight: 800, fontSize: "1rem", color: isSelected ? "#FF3008" : status === "empty" ? "#333" : conf.color }}>{t}</span>
-                      {orderCount > 0 && <span style={{ fontSize: "0.55rem", color: conf.color, fontWeight: 600 }}>{orderCount + " orders"}</span>}
+                      {orderCount > 0 && <span style={{ fontSize: "0.5rem", color: conf.color, fontWeight: 600 }}>{orderCount + " orders"}</span>}
+                      {tableRevenue > 0 && <span style={{ fontSize: "0.48rem", color: "#555" }}>{sym + tableRevenue}</span>}
                     </button>
                   );
                 })
@@ -178,7 +184,9 @@ export default function Tables() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
                   <div>
                     <h2 style={{ fontSize: "1.2rem", fontWeight: 800 }}>{"Table " + selectedTable}</h2>
-                    <p style={{ color: "#555", fontSize: "0.8rem", marginTop: "3px" }}>{selectedTableOrders.length + " orders · ₹" + getTableRevenue(selectedTable) + " revenue"}</p>
+                    <p style={{ color: "#555", fontSize: "0.8rem", marginTop: "3px" }}>
+                      {selectedTableOrders.length + " orders · " + sym + getTableRevenue(selectedTable) + " revenue"}
+                    </p>
                   </div>
                   <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                     <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search orders..." style={{ padding: "9px 14px", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", color: "#fff", fontSize: "0.82rem", fontFamily: "sans-serif", width: "180px" }} />
@@ -196,8 +204,8 @@ export default function Tables() {
                     {filteredOrders.map((order) => {
                       const sc = STATUS_COLOR[order.status] || STATUS_COLOR["New"];
                       const subtotal = order.subtotal || order.items.reduce((s, i) => s + i.price * i.qty, 0);
-                      const gst = order.gst || Math.round(subtotal * 0.18);
-                      const total = order.total || subtotal + gst;
+                      const tax = order.gst || Math.round(subtotal * tRate / 100);
+                      const total = order.total || subtotal + tax;
                       return (
                         <div key={order.id} style={{ background: "#161616", borderRadius: "14px", padding: "18px", border: "1px solid rgba(255,255,255,0.06)" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "14px" }}>
@@ -205,6 +213,14 @@ export default function Tables() {
                               <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>{order.id}</div>
                               <div style={{ fontSize: "0.72rem", color: "#555", marginTop: "3px" }}>{formatDate(order.timestamp) + " · " + formatTime(order.timestamp)}</div>
                               {order.customerName && <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "4px" }}>{order.customerName + " · " + order.customerPhone}</div>}
+                              {order.paymentMethod && (
+                                <div style={{ fontSize: "0.72rem", marginTop: "3px" }}>
+                                  {order.paymentMethod === "online" ?
+                                    <span style={{ color: "#818CF8", fontWeight: 600 }}>{"💳 Paid Online"}</span> :
+                                    <span style={{ color: "#FFC107", fontWeight: 600 }}>{"💵 Pay by Cash"}</span>
+                                  }
+                                </div>
+                              )}
                             </div>
                             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                               <div style={{ background: sc.bg, color: sc.text, padding: "4px 10px", borderRadius: "8px", fontSize: "0.72rem", fontWeight: 700 }}>{order.status}</div>
@@ -216,12 +232,18 @@ export default function Tables() {
                             {order.items.map((item, i) => (
                               <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.82rem" }}>
                                 <span style={{ color: "#666" }}>{item.name + " × " + item.qty}</span>
-                                <span style={{ color: "#fff", fontWeight: 600 }}>{"₹" + item.price * item.qty}</span>
+                                <span style={{ color: "#fff", fontWeight: 600 }}>{sym + item.price * item.qty}</span>
                               </div>
                             ))}
-                            <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "8px", marginTop: "4px", display: "flex", justifyContent: "space-between" }}>
-                              <span style={{ fontSize: "0.72rem", color: "#444" }}>{"GST: ₹" + gst}</span>
-                              <span style={{ fontWeight: 800, color: "#FF3008" }}>{"₹" + total}</span>
+                            <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "8px", marginTop: "4px" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", color: "#444", marginBottom: "4px" }}>
+                                <span>{tName + " (" + tRate + "%)"}</span>
+                                <span>{sym + tax}</span>
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                <span style={{ fontWeight: 700, fontSize: "0.85rem" }}>{"Total"}</span>
+                                <span style={{ fontWeight: 800, color: "#FF3008", fontSize: "0.95rem" }}>{sym + total}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
