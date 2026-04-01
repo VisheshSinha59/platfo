@@ -16,7 +16,6 @@ export default function Landing() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Auto-cycle demo steps
   useEffect(() => {
     const interval = setInterval(() => {
       setDemoStep((prev) => (prev + 1) % 4);
@@ -24,7 +23,6 @@ export default function Landing() {
     return () => clearInterval(interval);
   }, []);
 
-  // Auto-cycle features
   useEffect(() => {
     const interval = setInterval(() => {
       setActiveFeature((prev) => (prev + 1) % 6);
@@ -32,7 +30,6 @@ export default function Landing() {
     return () => clearInterval(interval);
   }, []);
 
-  // Animate stats on scroll
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting && !statsAnimated.current) {
@@ -56,7 +53,6 @@ export default function Landing() {
     }, 24);
   };
 
-  // Scroll animations
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
@@ -113,58 +109,36 @@ export default function Landing() {
         @keyframes float { 0%,100% { transform: translateY(0px) rotate(0deg); } 50% { transform: translateY(-20px) rotate(2deg); } }
         @keyframes floatR { 0%,100% { transform: translateY(0px) rotate(0deg); } 50% { transform: translateY(-15px) rotate(-2deg); } }
         @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(0.95); } }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes scanLine { 0% { top: 0%; } 100% { top: 100%; } }
-        @keyframes typewriter { from { width: 0; } to { width: 100%; } }
-        @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes glow { 0%,100% { box-shadow: 0 0 20px rgba(255,48,8,0.3); } 50% { box-shadow: 0 0 60px rgba(255,48,8,0.6); } }
-        @keyframes orbit { from { transform: rotate(0deg) translateX(120px) rotate(0deg); } to { transform: rotate(360deg) translateX(120px) rotate(-360deg); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes gradientShift { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
         @keyframes particleFloat { 0% { transform: translateY(100vh) rotate(0deg); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-100px) rotate(720deg); opacity: 0; } }
-        @keyframes numberCount { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes borderRun { 0% { background-position: 0% 0%; } 100% { background-position: 200% 0%; } }
-        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        @keyframes scanLine { 0% { top: 0%; } 100% { top: 100%; } }
 
         .hero-title { font-family: 'Syne', sans-serif; }
         .btn-primary { background: #FF3008; color: #fff; padding: 14px 32px; border-radius: 100px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; font-size: 0.95rem; transition: all 0.3s; box-shadow: 0 0 30px rgba(255,48,8,0.4); border: none; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; }
         .btn-primary:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 0 50px rgba(255,48,8,0.6); }
         .btn-ghost { background: transparent; color: #fff; padding: 14px 32px; border-radius: 100px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; font-size: 0.95rem; transition: all 0.3s; border: 1px solid rgba(255,255,255,0.15); cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; }
         .btn-ghost:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.3); }
-
         .card { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 20px; transition: all 0.3s; }
         .card:hover { border-color: rgba(255,48,8,0.3); transform: translateY(-4px); }
-
         .glow-text { background: linear-gradient(135deg, #fff 0%, #FF3008 50%, #fff 100%); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: gradientShift 4s linear infinite; }
-
         .nav-link { color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.88rem; font-weight: 500; transition: color 0.2s; }
         .nav-link:hover { color: #fff; }
-
         .feature-tab { padding: 12px 20px; border-radius: 100px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer; font-size: 0.82rem; font-weight: 600; transition: all 0.3s; background: transparent; color: rgba(255,255,255,0.4); font-family: 'Plus Jakarta Sans', sans-serif; }
         .feature-tab.active { background: rgba(255,48,8,0.15); border-color: rgba(255,48,8,0.4); color: #FF3008; }
-
         .demo-phone { width: 200px; height: 380px; background: #111; border-radius: 32px; border: 8px solid #222; position: relative; overflow: hidden; box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05); animation: float 6s ease-in-out infinite; }
         .demo-phone::before { content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 60px; height: 4px; background: #333; border-radius: 2px; z-index: 10; }
-
-        .qr-box { width: 100px; height: 100px; background: #fff; border-radius: 12px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; padding: 8px; }
-        .qr-cell { border-radius: 1px; }
-
-        .order-badge { animation: slideUp 0.5s ease; }
-
         .particle { position: absolute; width: 4px; height: 4px; background: #FF3008; border-radius: 50%; animation: particleFloat linear infinite; opacity: 0; }
-
         .pricing-card { background: #111; border: 1px solid rgba(255,255,255,0.07); border-radius: 24px; padding: 36px; transition: all 0.3s; position: relative; overflow: hidden; }
         .pricing-card:hover { transform: translateY(-6px); border-color: rgba(255,48,8,0.3); }
-        .pricing-card.featured { border-color: #FF3008; background: linear-gradient(180deg, rgba(255,48,8,0.08) 0%, #111 60%); }
-        .pricing-card.featured::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, #FF3008, transparent); }
 
         @media (max-width: 768px) {
           .hero-title { font-size: clamp(2.5rem, 10vw, 5rem) !important; letter-spacing: -2px !important; }
           .hero-btns { flex-direction: column; align-items: stretch !important; }
           .hero-btns a, .hero-btns button { text-align: center; justify-content: center; }
           .feature-grid { grid-template-columns: 1fr !important; }
-          .demo-section { flex-direction: column !important; }
           .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .pricing-grid { grid-template-columns: 1fr !important; }
           .testimonials-grid { grid-template-columns: 1fr !important; }
@@ -189,19 +163,16 @@ export default function Landing() {
             <div style={{ width: "34px", height: "34px", background: "#FF3008", borderRadius: "9px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", boxShadow: "0 0 16px rgba(255,48,8,0.5)", animation: "glow 3s ease-in-out infinite" }}>{"🍽️"}</div>
             <span style={{ fontFamily: "Syne, sans-serif", fontWeight: 800, fontSize: "1.2rem", color: "#fff" }}>{"Platfo"}</span>
           </a>
-
           <div className="nav-links-desktop" style={{ display: "flex", gap: "32px", alignItems: "center" }}>
             {["Features", "How It Works", "Pricing", "Reviews"].map((item) => (
               <a key={item} href={"#" + item.toLowerCase().replace(/ /g, "-")} className="nav-link">{item}</a>
             ))}
           </div>
-
           <div className="nav-cta-desktop" style={{ display: "flex", gap: "12px", alignItems: "center" }}>
             <a href="/admin" className="nav-link">{"Sign in"}</a>
             <a href="/signup" className="btn-primary" style={{ padding: "10px 22px", fontSize: "0.85rem" }}>{"Get Started Free →"}</a>
           </div>
-
-          <button onClick={() => setMenuOpen(!menuOpen)} style={{ display: "none", background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", width: "36px", height: "36px", borderRadius: "8px", cursor: "pointer", fontSize: "1.1rem" }} className="hide-desktop">{"☰"}</button>
+          <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: "rgba(255,255,255,0.06)", border: "none", color: "#fff", width: "36px", height: "36px", borderRadius: "8px", cursor: "pointer", fontSize: "1.1rem", display: "none" }} className="mobile-menu-btn">{"☰"}</button>
         </nav>
 
         {/* Mobile Menu */}
@@ -217,18 +188,14 @@ export default function Landing() {
 
         {/* HERO */}
         <section style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "100px 24px 60px", position: "relative", overflow: "hidden", textAlign: "center" }}>
-
-          {/* Background effects */}
           <div style={{ position: "absolute", top: "20%", left: "50%", transform: "translateX(-50%)", width: "600px", height: "600px", background: "radial-gradient(circle, rgba(255,48,8,0.12) 0%, transparent 70%)", pointerEvents: "none" }} />
           <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)", backgroundSize: "50px 50px", pointerEvents: "none" }} />
 
-          {/* Badge */}
           <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(255,48,8,0.08)", border: "1px solid rgba(255,48,8,0.25)", borderRadius: "100px", padding: "6px 16px", fontSize: "0.75rem", fontWeight: 600, color: "#FF3008", marginBottom: "28px", animation: "slideUp 0.6s ease" }}>
             <div style={{ width: "6px", height: "6px", background: "#FF3008", borderRadius: "50%", animation: "pulse 2s infinite" }} />
             {"✦ India's Smartest Restaurant Platform"}
           </div>
 
-          {/* Title */}
           <h1 className="hero-title" style={{ fontSize: "clamp(3rem, 8vw, 6.5rem)", fontWeight: 800, lineHeight: 0.9, letterSpacing: "-3px", marginBottom: "28px", animation: "slideUp 0.6s 0.1s ease both" }}>
             {"Turn Every Table"}
             <br />
@@ -237,22 +204,15 @@ export default function Landing() {
             {"Machine"}
           </h1>
 
-          {/* Subtitle */}
           <p style={{ fontSize: "clamp(1rem, 2.5vw, 1.2rem)", color: "rgba(255,255,255,0.45)", maxWidth: "520px", lineHeight: 1.7, marginBottom: "44px", animation: "slideUp 0.6s 0.2s ease both" }}>
             {"QR ordering. Real-time kitchen display. Smart analytics. Everything your restaurant needs — in one beautiful platform."}
           </p>
 
-          {/* CTA Buttons */}
           <div className="hero-btns" style={{ display: "flex", gap: "14px", alignItems: "center", flexWrap: "wrap", justifyContent: "center", animation: "slideUp 0.6s 0.3s ease both" }}>
-            <a href="/signup" className="btn-primary">
-              {"Start Free →"}
-            </a>
-            <a href="#features" className="btn-ghost">
-              {"See Features"}
-            </a>
+            <a href="/signup" className="btn-primary">{"Start Free →"}</a>
+            <a href="#features" className="btn-ghost">{"See Features"}</a>
           </div>
 
-          {/* Trust */}
           <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "44px", animation: "slideUp 0.6s 0.4s ease both", flexWrap: "wrap", justifyContent: "center" }}>
             <div style={{ display: "flex" }}>
               {["👨‍🍳", "👩‍🍳", "🧑‍💼", "👨‍💼", "👩‍💼"].map((e, i) => (
@@ -267,13 +227,10 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Animated Demo Preview */}
+          {/* Demo */}
           <div style={{ marginTop: "80px", position: "relative", width: "100%", maxWidth: "800px", animation: "slideUp 0.6s 0.5s ease both" }}>
-
-            {/* Main Phone */}
             <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-end", gap: "24px" }}>
 
-              {/* Left Card - floating */}
               <div className="hide-mobile" style={{ background: "#111", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "16px", width: "160px", animation: "floatR 7s ease-in-out infinite", marginBottom: "40px" }}>
                 <div style={{ fontSize: "0.65rem", color: "#555", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "1px" }}>{"New Order"}</div>
                 <div style={{ fontWeight: 800, fontSize: "0.9rem" }}>{"R1-ORD-0047"}</div>
@@ -284,12 +241,8 @@ export default function Landing() {
                 </div>
               </div>
 
-              {/* Phone */}
               <div className="demo-phone">
-                {/* Phone Screen */}
                 <div style={{ position: "absolute", inset: 0, background: "#0A0A0A", overflow: "hidden" }}>
-
-                  {/* Step 0 — QR Scan */}
                   {demoStep === 0 && (
                     <div style={{ padding: "20px", animation: "fadeIn 0.4s ease" }}>
                       <div style={{ fontSize: "0.6rem", color: "#555", marginBottom: "12px", textAlign: "center" }}>{"Scan to order"}</div>
@@ -300,13 +253,10 @@ export default function Landing() {
                           ))}
                         </div>
                       </div>
-                      {/* Scan animation */}
                       <div style={{ position: "absolute", top: "55px", left: "50%", transform: "translateX(-50%)", width: "90px", height: "2px", background: "rgba(255,48,8,0.8)", animation: "scanLine 1.5s ease-in-out infinite", boxShadow: "0 0 10px rgba(255,48,8,0.6)" }} />
                       <div style={{ textAlign: "center", fontSize: "0.55rem", color: "#555" }}>{"Platfo · Table 5"}</div>
                     </div>
                   )}
-
-                  {/* Step 1 — Menu */}
                   {demoStep === 1 && (
                     <div style={{ animation: "fadeIn 0.4s ease" }}>
                       <div style={{ background: "#111", padding: "12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
@@ -329,8 +279,6 @@ export default function Landing() {
                       ))}
                     </div>
                   )}
-
-                  {/* Step 2 — Order placed */}
                   {demoStep === 2 && (
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", padding: "20px", animation: "fadeIn 0.4s ease" }}>
                       <div style={{ width: "50px", height: "50px", background: "rgba(74,222,128,0.1)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", border: "2px solid rgba(74,222,128,0.3)", marginBottom: "12px" }}>{"✅"}</div>
@@ -348,8 +296,6 @@ export default function Landing() {
                       </div>
                     </div>
                   )}
-
-                  {/* Step 3 — Kitchen */}
                   {demoStep === 3 && (
                     <div style={{ animation: "fadeIn 0.4s ease" }}>
                       <div style={{ background: "#111", padding: "10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
@@ -379,7 +325,6 @@ export default function Landing() {
                 </div>
               </div>
 
-              {/* Right Card */}
               <div className="hide-mobile" style={{ background: "#111", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "16px", width: "160px", animation: "float 8s ease-in-out infinite", marginBottom: "20px" }}>
                 <div style={{ fontSize: "0.65rem", color: "#555", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "1px" }}>{"Revenue Today"}</div>
                 <div style={{ fontWeight: 800, fontSize: "1.2rem", color: "#4ADE80" }}>{"₹12,840"}</div>
@@ -392,7 +337,6 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Step indicators */}
             <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginTop: "28px" }}>
               {DEMO_STEPS.map((step, i) => (
                 <button key={i} onClick={() => setDemoStep(i)} style={{ padding: "6px 14px", borderRadius: "20px", border: "none", cursor: "pointer", fontFamily: "Plus Jakarta Sans, sans-serif", fontSize: "0.72rem", fontWeight: 600, background: demoStep === i ? "rgba(255,48,8,0.15)" : "rgba(255,255,255,0.04)", color: demoStep === i ? "#FF3008" : "#444", border: demoStep === i ? "1px solid rgba(255,48,8,0.3)" : "1px solid transparent", transition: "all 0.3s" }}>
@@ -430,7 +374,6 @@ export default function Landing() {
             <p style={{ color: "rgba(255,255,255,0.35)", fontSize: "1rem", maxWidth: "480px", margin: "0 auto" }}>{"Built specifically for Indian restaurants. GST-compliant, fast, and beautifully simple."}</p>
           </div>
 
-          {/* Feature tabs */}
           <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap", marginBottom: "48px" }} className="reveal">
             {FEATURES.map((f, i) => (
               <button key={i} onClick={() => setActiveFeature(i)} className={"feature-tab" + (activeFeature === i ? " active" : "")}>
@@ -439,7 +382,6 @@ export default function Landing() {
             ))}
           </div>
 
-          {/* Active feature display */}
           <div className="reveal" style={{ background: "#111", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "24px", padding: "48px", textAlign: "center", position: "relative", overflow: "hidden", minHeight: "200px" }}>
             <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center, " + FEATURES[activeFeature].color + "08 0%, transparent 70%)", pointerEvents: "none" }} />
             <div style={{ fontSize: "4rem", marginBottom: "20px" }}>{FEATURES[activeFeature].icon}</div>
@@ -447,7 +389,6 @@ export default function Landing() {
             <p style={{ color: "rgba(255,255,255,0.45)", fontSize: "1.05rem", maxWidth: "480px", margin: "0 auto", lineHeight: 1.7 }}>{FEATURES[activeFeature].desc}</p>
           </div>
 
-          {/* Feature grid */}
           <div className="feature-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", marginTop: "20px" }}>
             {FEATURES.map((f, i) => (
               <div key={i} className="card reveal" onClick={() => setActiveFeature(i)} style={{ padding: "28px", cursor: "pointer", borderColor: activeFeature === i ? "rgba(255,48,8,0.3)" : "rgba(255,255,255,0.07)" }}>
@@ -466,7 +407,6 @@ export default function Landing() {
               <div style={{ fontSize: "0.72rem", color: "#FF3008", fontWeight: 700, textTransform: "uppercase", letterSpacing: "2px", marginBottom: "12px" }}>{"✦ How It Works"}</div>
               <h2 style={{ fontFamily: "Syne, sans-serif", fontSize: "clamp(2rem, 5vw, 3.2rem)", fontWeight: 800, letterSpacing: "-2px" }}>{"Live in under"}<br /><span className="glow-text">{"60 minutes"}</span></h2>
             </div>
-
             <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
               {[
                 { num: "01", title: "Sign Up in 2 minutes", desc: "Create your account with email verification. Enter your restaurant name, username and password.", icon: "✍️", color: "#FF3008" },
@@ -492,35 +432,107 @@ export default function Landing() {
           <div style={{ textAlign: "center", marginBottom: "60px" }} className="reveal">
             <div style={{ fontSize: "0.72rem", color: "#FF3008", fontWeight: 700, textTransform: "uppercase", letterSpacing: "2px", marginBottom: "12px" }}>{"✦ Pricing"}</div>
             <h2 style={{ fontFamily: "Syne, sans-serif", fontSize: "clamp(2rem, 5vw, 3.2rem)", fontWeight: 800, letterSpacing: "-2px", marginBottom: "12px" }}>{"Simple pricing."}<br />{"No surprises."}</h2>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: "100px", padding: "6px 16px", fontSize: "0.8rem", color: "#4ADE80", fontWeight: 600 }}>
-              {"🎉 Currently FREE for all restaurants!"}
-            </div>
+            <p style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.95rem", maxWidth: "480px", margin: "0 auto" }}>{"One plan. All features. Pay less when you commit longer."}</p>
           </div>
 
-          <div className="pricing-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px" }}>
-            {[
-              { name: "Starter", price: "₹999", period: "/mo", desc: "Perfect for small restaurants getting started.", color: "#818CF8", features: ["1 Restaurant", "Up to 5 Tables", "20 Menu Items", "QR Ordering", "Basic Dashboard", "Email Support"] },
-              { name: "Growth", price: "₹2,499", period: "/mo", desc: "For growing restaurants that need more.", color: "#FF3008", features: ["1 Restaurant", "Up to 20 Tables", "Unlimited Menu Items", "Kitchen Display", "Table History", "GST Receipts", "Priority Support"], featured: true },
-              { name: "Pro", price: "₹4,999", period: "/mo", desc: "For restaurant chains and multiple locations.", color: "#4ADE80", features: ["5 Restaurants", "Unlimited Tables", "All Growth Features", "Advanced Analytics", "Custom Branding", "Dedicated Support"] },
-            ].map((plan) => (
-              <div key={plan.name} className={"pricing-card reveal" + (plan.featured ? " featured" : "")}>
-                {plan.featured && (
-                  <div style={{ position: "absolute", top: "-1px", left: "50%", transform: "translateX(-50%)", background: "#FF3008", color: "#fff", fontSize: "0.65rem", fontWeight: 700, padding: "4px 14px", borderRadius: "0 0 8px 8px", letterSpacing: "1px", textTransform: "uppercase" }}>{"Most Popular"}</div>
-                )}
-                <div style={{ fontSize: "0.72rem", color: plan.color, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: "14px" }}>{plan.name}</div>
-                <div style={{ fontFamily: "Syne, sans-serif", fontSize: "2.5rem", fontWeight: 800, marginBottom: "4px" }}>{plan.price}<span style={{ fontSize: "1rem", color: "rgba(255,255,255,0.3)", fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 400 }}>{plan.period}</span></div>
-                <div style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.35)", marginBottom: "28px", lineHeight: 1.5 }}>{plan.desc}</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "28px" }}>
-                  {plan.features.map((f) => (
-                    <div key={f} style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.85rem", color: "rgba(255,255,255,0.6)" }}>
-                      <div style={{ width: "16px", height: "16px", background: plan.color + "20", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem", color: plan.color, flexShrink: 0 }}>{"✓"}</div>
-                      {f}
-                    </div>
-                  ))}
-                </div>
-                <a href="/signup" style={{ display: "block", textAlign: "center", padding: "13px", borderRadius: "12px", fontWeight: 700, fontSize: "0.9rem", textDecoration: "none", background: plan.featured ? "#FF3008" : "rgba(255,255,255,0.06)", color: "#fff", transition: "all 0.3s", boxShadow: plan.featured ? "0 0 30px rgba(255,48,8,0.3)" : "none" }}>{"Get Started →"}</a>
-              </div>
+          {/* All Features Banner */}
+          <div className="reveal" style={{ background: "rgba(255,48,8,0.06)", border: "1px solid rgba(255,48,8,0.15)", borderRadius: "16px", padding: "20px 28px", marginBottom: "40px", display: "flex", flexWrap: "wrap", gap: "12px", justifyContent: "center", alignItems: "center" }}>
+            <span style={{ fontSize: "0.78rem", color: "#FF3008", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px" }}>{"✦ Every plan includes:"}</span>
+            {["QR Code Ordering", "Kitchen Display", "Admin Dashboard", "GST Receipts", "Table History", "Menu Management", "Auto Refresh", "Email Support", "Unlimited Orders", "Multiple Tables"].map((f) => (
+              <span key={f} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "100px", padding: "4px 12px", fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>{f}</span>
             ))}
+          </div>
+
+          <div className="pricing-grid reveal" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px" }}>
+
+            {/* Monthly */}
+            <div className="pricing-card">
+              <div style={{ fontSize: "0.72rem", color: "#818CF8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: "14px" }}>{"Monthly"}</div>
+              <div style={{ fontFamily: "Syne, sans-serif", fontSize: "2.8rem", fontWeight: 800, marginBottom: "4px", letterSpacing: "-2px" }}>
+                {"₹1,299"}
+                <span style={{ fontSize: "1rem", color: "rgba(255,255,255,0.3)", fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 400 }}>{"/mo"}</span>
+              </div>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(129,140,248,0.08)", border: "1px solid rgba(129,140,248,0.15)", borderRadius: "8px", padding: "4px 10px", marginBottom: "10px" }}>
+                <span style={{ fontSize: "0.75rem", color: "#818CF8", fontWeight: 600 }}>{"🗓 28 days per cycle"}</span>
+              </div>
+              <div style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.35)", marginBottom: "28px", lineHeight: 1.5 }}>{"Perfect for restaurants starting out. Cancel anytime."}</div>
+              <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: "12px", padding: "14px", marginBottom: "24px" }}>
+                <div style={{ fontSize: "0.72rem", color: "#555", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "10px", fontWeight: 600 }}>{"What you get"}</div>
+                {["All Platform Features", "Unlimited Orders", "Up to 50 Tables", "Real-time Kitchen Display", "QR Code Generation", "GST Receipt Printing", "Email Support", "Regular Updates"].map((f) => (
+                  <div key={f} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", fontSize: "0.82rem", color: "rgba(255,255,255,0.55)" }}>
+                    <div style={{ width: "16px", height: "16px", background: "rgba(129,140,248,0.15)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem", color: "#818CF8", flexShrink: 0 }}>{"✓"}</div>
+                    {f}
+                  </div>
+                ))}
+              </div>
+              <a href="/signup" style={{ display: "block", textAlign: "center", padding: "13px", borderRadius: "12px", fontWeight: 700, fontSize: "0.9rem", textDecoration: "none", background: "rgba(129,140,248,0.12)", color: "#818CF8", border: "1px solid rgba(129,140,248,0.25)", transition: "all 0.3s" }}>{"Get Started →"}</a>
+            </div>
+
+            {/* 6 Months */}
+            <div style={{ background: "linear-gradient(180deg, rgba(255,48,8,0.08) 0%, #111 60%)", border: "1px solid #FF3008", borderRadius: "24px", padding: "36px", transition: "all 0.3s", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "1px", background: "linear-gradient(90deg, transparent, #FF3008, transparent)" }} />
+              <div style={{ position: "absolute", top: "-1px", right: "24px", background: "#FF3008", color: "#fff", fontSize: "0.65rem", fontWeight: 700, padding: "5px 14px", borderRadius: "0 0 10px 10px", letterSpacing: "1px", textTransform: "uppercase" }}>{"Most Popular"}</div>
+              <div style={{ fontSize: "0.72rem", color: "#FF3008", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: "14px" }}>{"6 Months"}</div>
+              <div style={{ fontFamily: "Syne, sans-serif", fontSize: "2.8rem", fontWeight: 800, marginBottom: "4px", letterSpacing: "-2px" }}>
+                {"₹1,099"}
+                <span style={{ fontSize: "1rem", color: "rgba(255,255,255,0.3)", fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 400 }}>{"/mo"}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                <span style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.25)", textDecoration: "line-through" }}>{"₹7,794"}</span>
+                <span style={{ background: "rgba(255,48,8,0.15)", color: "#FF3008", fontSize: "0.7rem", fontWeight: 700, padding: "2px 8px", borderRadius: "6px" }}>{"Save ₹1,194"}</span>
+              </div>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(255,48,8,0.08)", border: "1px solid rgba(255,48,8,0.2)", borderRadius: "8px", padding: "4px 10px", marginBottom: "10px" }}>
+                <span style={{ fontSize: "0.75rem", color: "#FF3008", fontWeight: 600 }}>{"🗓 168 days · ₹6,594 total"}</span>
+              </div>
+              <div style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.35)", marginBottom: "28px", lineHeight: 1.5 }}>{"Best value for growing restaurants."}</div>
+              <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: "12px", padding: "14px", marginBottom: "24px" }}>
+                <div style={{ fontSize: "0.72rem", color: "#555", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "10px", fontWeight: 600 }}>{"Everything in Monthly, plus"}</div>
+                {["All Platform Features", "Unlimited Orders", "Up to 50 Tables", "Real-time Kitchen Display", "QR Code Generation", "GST Receipt Printing", "Priority Support", "Early Access to New Features"].map((f) => (
+                  <div key={f} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", fontSize: "0.82rem", color: "rgba(255,255,255,0.55)" }}>
+                    <div style={{ width: "16px", height: "16px", background: "rgba(255,48,8,0.15)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem", color: "#FF3008", flexShrink: 0 }}>{"✓"}</div>
+                    {f}
+                  </div>
+                ))}
+              </div>
+              <a href="/signup" style={{ display: "block", textAlign: "center", padding: "14px", borderRadius: "12px", fontWeight: 700, fontSize: "0.95rem", textDecoration: "none", background: "#FF3008", color: "#fff", boxShadow: "0 0 30px rgba(255,48,8,0.35)", transition: "all 0.3s" }}>{"Get Started →"}</a>
+            </div>
+
+            {/* 12 Months */}
+            <div className="pricing-card">
+              <div style={{ position: "absolute", top: "16px", right: "16px", background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ADE80", fontSize: "0.65rem", fontWeight: 700, padding: "3px 10px", borderRadius: "6px" }}>{"Best Deal"}</div>
+              <div style={{ fontSize: "0.72rem", color: "#4ADE80", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: "14px" }}>{"12 Months"}</div>
+              <div style={{ fontFamily: "Syne, sans-serif", fontSize: "2.8rem", fontWeight: 800, marginBottom: "4px", letterSpacing: "-2px" }}>
+                {"₹859"}
+                <span style={{ fontSize: "1rem", color: "rgba(255,255,255,0.3)", fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 400 }}>{"/mo"}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                <span style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.25)", textDecoration: "line-through" }}>{"₹15,588"}</span>
+                <span style={{ background: "rgba(74,222,128,0.1)", color: "#4ADE80", fontSize: "0.7rem", fontWeight: 700, padding: "2px 8px", borderRadius: "6px" }}>{"Save ₹5,280"}</span>
+              </div>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)", borderRadius: "8px", padding: "4px 10px", marginBottom: "10px" }}>
+                <span style={{ fontSize: "0.75rem", color: "#4ADE80", fontWeight: 600 }}>{"🗓 336 days · ₹10,308 total"}</span>
+              </div>
+              <div style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.35)", marginBottom: "28px", lineHeight: 1.5 }}>{"Maximum savings for established restaurants."}</div>
+              <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: "12px", padding: "14px", marginBottom: "24px" }}>
+                <div style={{ fontSize: "0.72rem", color: "#555", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "10px", fontWeight: 600 }}>{"Everything included"}</div>
+                {["All Platform Features", "Unlimited Orders", "Up to 50 Tables", "Real-time Kitchen Display", "QR Code Generation", "GST Receipt Printing", "Dedicated Support", "Custom Onboarding", "Free Setup Assistance"].map((f) => (
+                  <div key={f} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", fontSize: "0.82rem", color: "rgba(255,255,255,0.55)" }}>
+                    <div style={{ width: "16px", height: "16px", background: "rgba(74,222,128,0.12)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem", color: "#4ADE80", flexShrink: 0 }}>{"✓"}</div>
+                    {f}
+                  </div>
+                ))}
+              </div>
+              <a href="/signup" style={{ display: "block", textAlign: "center", padding: "13px", borderRadius: "12px", fontWeight: 700, fontSize: "0.9rem", textDecoration: "none", background: "rgba(74,222,128,0.1)", color: "#4ADE80", border: "1px solid rgba(74,222,128,0.25)", transition: "all 0.3s" }}>{"Get Started →"}</a>
+            </div>
+
+          </div>
+
+          {/* Bottom note */}
+          <div className="reveal" style={{ textAlign: "center", marginTop: "32px" }}>
+            <p style={{ color: "rgba(255,255,255,0.2)", fontSize: "0.8rem" }}>
+              {"All prices exclusive of GST · Payments processed securely via Razorpay · "}
+              <span style={{ color: "rgba(255,255,255,0.35)" }}>{"Cancel anytime on monthly plan"}</span>
+            </p>
           </div>
         </section>
 
@@ -531,7 +543,6 @@ export default function Landing() {
               <div style={{ fontSize: "0.72rem", color: "#FF3008", fontWeight: 700, textTransform: "uppercase", letterSpacing: "2px", marginBottom: "12px" }}>{"✦ Reviews"}</div>
               <h2 style={{ fontFamily: "Syne, sans-serif", fontSize: "clamp(2rem, 5vw, 3.2rem)", fontWeight: 800, letterSpacing: "-2px" }}>{"Loved by restaurants"}<br />{"across India"}</h2>
             </div>
-
             <div className="testimonials-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px" }}>
               {TESTIMONIALS.map((t, i) => (
                 <div key={i} className="card reveal" style={{ padding: "28px" }}>
@@ -555,7 +566,7 @@ export default function Landing() {
           <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "500px", height: "500px", background: "radial-gradient(circle, rgba(255,48,8,0.1) 0%, transparent 70%)", pointerEvents: "none" }} />
           <div className="reveal" style={{ position: "relative", zIndex: 1 }}>
             <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: "100px", padding: "6px 16px", fontSize: "0.78rem", color: "#4ADE80", fontWeight: 600, marginBottom: "28px" }}>
-              {"🎉 100% Free to get started"}
+              {"🎉 Start with a free trial today!"}
             </div>
             <h2 style={{ fontFamily: "Syne, sans-serif", fontSize: "clamp(2.5rem, 7vw, 5rem)", fontWeight: 800, letterSpacing: "-3px", marginBottom: "20px", lineHeight: 0.95 }}>
               {"Ready to transform"}<br />
@@ -565,7 +576,7 @@ export default function Landing() {
               {"Join hundreds of restaurants already using Platfo. Setup takes less than an hour."}
             </p>
             <div style={{ display: "flex", gap: "14px", justifyContent: "center", flexWrap: "wrap" }}>
-              <a href="/signup" className="btn-primary" style={{ fontSize: "1rem", padding: "16px 36px" }}>{"Start Free — No Card Needed →"}</a>
+              <a href="/signup" className="btn-primary" style={{ fontSize: "1rem", padding: "16px 36px" }}>{"Start Free Trial →"}</a>
               <a href="/admin" className="btn-ghost" style={{ fontSize: "1rem", padding: "16px 36px" }}>{"Sign In"}</a>
             </div>
           </div>
@@ -608,6 +619,3 @@ export default function Landing() {
     </>
   );
 }
-
- 
-
