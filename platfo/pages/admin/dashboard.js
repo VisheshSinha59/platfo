@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
@@ -34,6 +33,7 @@ const getToken = () => {
 
 const NAV_ITEMS = [
   { id: "orders", icon: "⚡", label: "Orders" },
+  { id: "accounts", icon: "📊", label: "Accounts" },
   { id: "menu", icon: "🍽️", label: "Menu" },
   { id: "settings", icon: "⚙️", label: "Settings" },
   { id: "qrcodes", icon: "📱", label: "QR Codes" },
@@ -66,15 +66,29 @@ export default function AdminDashboard() {
   const [paymentSaved, setPaymentSaved] = useState(false);
   const [paymentError, setPaymentError] = useState("");
 
+  // Accounts filter
+  const [accountDateBtn, setAccountDateBtn] = useState("today");
+  const [accountStart, setAccountStart] = useState(getISTDate(0));
+  const [accountEnd, setAccountEnd] = useState(getISTDate(0));
+
+  // Section states
   const [showAddSection, setShowAddSection] = useState(false);
   const [newSectionName, setNewSectionName] = useState("");
   const [editSection, setEditSection] = useState(null);
   const [activeSectionId, setActiveSectionId] = useState(null);
 
+  // Item states
   const [showAddItem, setShowAddItem] = useState(false);
   const [newItem, setNewItem] = useState({ name: "", price: "", desc: "", tag: "", sectionId: "" });
   const [editItem, setEditItem] = useState(null);
   const [itemError, setItemError] = useState("");
+
+  // Refs for interval
+  const startDateRef = useRef("");
+  const endDateRef = useRef("");
+
+  useEffect(() => { startDateRef.current = startDate; }, [startDate]);
+  useEffect(() => { endDateRef.current = endDate; }, [endDate]);
 
   useEffect(() => {
     const stored = localStorage.getItem("restaurant");
@@ -127,7 +141,7 @@ export default function AdminDashboard() {
     if (restaurantId) {
       fetchOrders("", "");
       const interval = setInterval(() => {
-        fetchOrders(startDate, endDate, true);
+        fetchOrders(startDateRef.current, endDateRef.current, true);
       }, 5000);
       return () => clearInterval(interval);
     }
@@ -313,6 +327,15 @@ export default function AdminDashboard() {
   const menuUrl = typeof window !== "undefined" ? window.location.origin + "/menu?restaurantId=" + restaurantId + "&table=1" : "";
   const sectionItems = (sId) => menu.filter((item) => item.sectionId === Number(sId));
   const unsectionedItems = menu.filter((item) => !item.sectionId);
+
+  // Accounts filtered orders
+  const accountOrders = orders.filter((o) => {
+    if (!accountStart && !accountEnd) return true;
+    const orderDate = new Date(o.timestamp).toLocaleDateString("en-CA");
+    if (accountStart && orderDate < accountStart) return false;
+    if (accountEnd && orderDate > accountEnd) return false;
+    return true;
+  });
 
   const inputStyle = {
     width: "100%", padding: "11px 14px", borderRadius: "10px",
@@ -535,6 +558,274 @@ export default function AdminDashboard() {
                     })}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* ACCOUNTS TAB */}
+            {tab === "accounts" && (
+              <div className="fade-in">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+                  <div>
+                    <h2 style={{ fontSize: "1.2rem", fontWeight: 800 }}>{"📊 Accounts & Analytics"}</h2>
+                    <p style={{ color: "#555", fontSize: "0.82rem", marginTop: "4px" }}>{"Daily revenue breakdown and business insights"}</p>
+                  </div>
+                  <button onClick={() => {
+                    const delivered = accountOrders.filter(o => o.status === "Delivered");
+                    const rows = [
+                      ["Date", "Order ID", "Table", "Customer", "Items", "Subtotal", "GST", "Total", "Payment"],
+                      ...delivered.map(o => {
+                        const subtotal = o.subtotal || o.items.reduce((s, i) => s + i.price * i.qty, 0);
+                        const gst = o.gst || Math.round(subtotal * 0.18);
+                        const total = o.total || subtotal + gst;
+                        return [
+                          new Date(o.timestamp).toLocaleDateString("en-IN"),
+                          o.id, "Table " + o.tableNumber,
+                          o.customerName || "—",
+                          o.items.map(i => i.name + " x" + i.qty).join("; "),
+                          subtotal, gst, total, o.paymentMethod || "cash"
+                        ];
+                      })
+                    ];
+                    const csv = rows.map(r => r.join(",")).join("\n");
+                    const blob = new Blob([csv], { type: "text/csv" });
+                    const link = document.createElement("a");
+                    link.href = URL.createObjectURL(blob);
+                    link.download = restaurant.name + "-accounts-" + accountDateBtn + "-" + new Date().toISOString().split("T")[0] + ".csv";
+                    link.click();
+                  }} style={{ background: "#4ADE80", color: "#000", border: "none", padding: "10px 18px", borderRadius: "10px", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", display: "flex", alignItems: "center", gap: "6px" }}>
+                    {"⬇️ Export CSV"}
+                  </button>
+                </div>
+
+                {/* Date Filter */}
+                <div style={{ background: "#161616", borderRadius: "16px", padding: "18px 20px", marginBottom: "20px", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                      {[
+                        { key: "today", label: "Today" },
+                        { key: "yesterday", label: "Yesterday" },
+                        { key: "week", label: "This Week" },
+                        { key: "month", label: "This Month" },
+                        { key: "all", label: "All Time" },
+                      ].map((btn) => (
+                        <button key={btn.key} onClick={() => {
+                          setAccountDateBtn(btn.key);
+                          if (btn.key === "today") { const d = getISTDate(0); setAccountStart(d); setAccountEnd(d); }
+                          else if (btn.key === "yesterday") { const d = getISTDate(-1); setAccountStart(d); setAccountEnd(d); }
+                          else if (btn.key === "week") { setAccountStart(getISTDate(-7)); setAccountEnd(getISTDate(0)); }
+                          else if (btn.key === "month") {
+                            const now = new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000);
+                            setAccountStart(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0]);
+                            setAccountEnd(getISTDate(0));
+                          } else { setAccountStart(""); setAccountEnd(""); }
+                        }} style={{ padding: "7px 14px", borderRadius: "8px", fontWeight: 600, fontSize: "0.8rem", cursor: "pointer", fontFamily: "sans-serif", border: accountDateBtn === btn.key ? "1px solid #FF3008" : "1px solid rgba(255,255,255,0.08)", background: accountDateBtn === btn.key ? "rgba(255,48,8,0.15)" : "transparent", color: accountDateBtn === btn.key ? "#FF3008" : "#666", transition: "all 0.2s" }}>
+                          {btn.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      <input type="date" value={accountStart} onChange={(e) => { setAccountStart(e.target.value); setAccountDateBtn("custom"); }} style={{ ...inputStyle, width: "auto", marginTop: 0, padding: "7px 10px" }} />
+                      <span style={{ color: "#444" }}>{"→"}</span>
+                      <input type="date" value={accountEnd} onChange={(e) => { setAccountEnd(e.target.value); setAccountDateBtn("custom"); }} style={{ ...inputStyle, width: "auto", marginTop: 0, padding: "7px 10px" }} />
+                    </div>
+                  </div>
+                  <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid rgba(255,255,255,0.06)", fontSize: "0.75rem", color: "#555", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{ width: "6px", height: "6px", background: "#FF3008", borderRadius: "50%" }} />
+                    {"Showing: "}
+                    <span style={{ color: "#fff", fontWeight: 600 }}>
+                      {accountDateBtn === "today" ? "Today — " + getISTDate(0) :
+                       accountDateBtn === "yesterday" ? "Yesterday — " + getISTDate(-1) :
+                       accountDateBtn === "week" ? "Last 7 days" :
+                       accountDateBtn === "month" ? "This month" :
+                       accountDateBtn === "all" ? "All time" :
+                       (accountStart || "—") + " to " + (accountEnd || "—")}
+                    </span>
+                    <span style={{ color: "#444" }}>{"· " + accountOrders.filter(o => o.status === "Delivered").length + " delivered orders"}</span>
+                  </div>
+                </div>
+
+                {(() => {
+                  const delivered = accountOrders.filter(o => o.status === "Delivered");
+                  const totalRev = delivered.reduce((s, o) => s + (o.total || 0), 0);
+                  const totalGST = delivered.reduce((s, o) => {
+                    const sub = o.subtotal || o.items.reduce((s2, i) => s2 + i.price * i.qty, 0);
+                    return s + (o.gst || Math.round(sub * 0.18));
+                  }, 0);
+                  const cashOrders = delivered.filter(o => o.paymentMethod !== "online");
+                  const onlineOrders = delivered.filter(o => o.paymentMethod === "online");
+                  const cashRev = cashOrders.reduce((s, o) => s + (o.total || 0), 0);
+                  const onlineRev = onlineOrders.reduce((s, o) => s + (o.total || 0), 0);
+
+                  return (
+                    <>
+                      {/* Summary Cards */}
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "14px", marginBottom: "20px" }}>
+                        {[
+                          { label: "Total Revenue", value: "₹" + totalRev, icon: "💰", color: "#4ADE80", sub: delivered.length + " orders delivered" },
+                          { label: "GST Collected", value: "₹" + totalGST, icon: "🧾", color: "#FFC107", sub: "18% of subtotal" },
+                          { label: "Cash Revenue", value: "₹" + cashRev, icon: "💵", color: "#FB923C", sub: cashOrders.length + " cash orders" },
+                          { label: "Online Revenue", value: "₹" + onlineRev, icon: "💳", color: "#818CF8", sub: onlineOrders.length + " online orders" },
+                        ].map((stat) => (
+                          <div key={stat.label} style={{ background: "#161616", borderRadius: "14px", padding: "18px", border: "1px solid rgba(255,255,255,0.06)", position: "relative", overflow: "hidden" }}>
+                            <div style={{ position: "absolute", top: "-8px", right: "-8px", fontSize: "2.5rem", opacity: 0.06 }}>{stat.icon}</div>
+                            <div style={{ fontSize: "0.68rem", color: "#555", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "8px" }}>{stat.label}</div>
+                            <div style={{ fontSize: "1.6rem", fontWeight: 800, color: stat.color, marginBottom: "4px" }}>{stat.value}</div>
+                            <div style={{ fontSize: "0.68rem", color: "#444" }}>{stat.sub}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Daily Breakdown */}
+                      <div style={{ background: "#161616", borderRadius: "16px", padding: "20px", marginBottom: "20px", border: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div style={{ fontSize: "0.82rem", fontWeight: 700, marginBottom: "16px", display: "flex", justifyContent: "space-between" }}>
+                          <span>{"📅 Daily Breakdown"}</span>
+                          <span style={{ fontSize: "0.72rem", color: "#555", fontWeight: 400 }}>{"Delivered orders only"}</span>
+                        </div>
+                        {(() => {
+                          const dailyMap = {};
+                          delivered.forEach(o => {
+                            const date = new Date(o.timestamp).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+                            if (!dailyMap[date]) dailyMap[date] = { orders: 0, revenue: 0, gst: 0, cash: 0, online: 0 };
+                            const sub = o.subtotal || o.items.reduce((s, i) => s + i.price * i.qty, 0);
+                            const gst = o.gst || Math.round(sub * 0.18);
+                            dailyMap[date].orders++;
+                            dailyMap[date].revenue += (o.total || sub + gst);
+                            dailyMap[date].gst += gst;
+                            if (o.paymentMethod === "online") dailyMap[date].online += (o.total || 0);
+                            else dailyMap[date].cash += (o.total || 0);
+                          });
+                          const days = Object.entries(dailyMap).sort((a, b) => new Date(b[0]) - new Date(a[0]));
+                          const maxRev = Math.max(...days.map(d => d[1].revenue), 1);
+                          if (days.length === 0) return (
+                            <div style={{ textAlign: "center", padding: "40px", color: "#333" }}>
+                              <div style={{ fontSize: "2rem", marginBottom: "10px", opacity: 0.3 }}>{"📊"}</div>
+                              <p style={{ fontSize: "0.85rem" }}>{"No delivered orders in this period"}</p>
+                            </div>
+                          );
+                          return (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                              {days.map(([date, data]) => (
+                                <div key={date} style={{ display: "flex", alignItems: "center", gap: "14px", padding: "12px 14px", background: "rgba(255,255,255,0.03)", borderRadius: "10px" }}>
+                                  <div style={{ minWidth: "110px" }}>
+                                    <div style={{ fontWeight: 700, fontSize: "0.82rem" }}>{date}</div>
+                                    <div style={{ fontSize: "0.68rem", color: "#555", marginTop: "2px" }}>{data.orders + " orders"}</div>
+                                  </div>
+                                  <div style={{ flex: 1, height: "8px", background: "rgba(255,255,255,0.06)", borderRadius: "4px", overflow: "hidden" }}>
+                                    <div style={{ height: "100%", width: (data.revenue / maxRev * 100) + "%", background: "linear-gradient(90deg, #FF3008, #FF6B35)", borderRadius: "4px" }} />
+                                  </div>
+                                  <div style={{ minWidth: "90px", textAlign: "right" }}>
+                                    <div style={{ fontWeight: 800, color: "#4ADE80", fontSize: "0.9rem" }}>{"₹" + data.revenue}</div>
+                                    <div style={{ fontSize: "0.65rem", color: "#555", marginTop: "1px" }}>{"GST: ₹" + data.gst}</div>
+                                  </div>
+                                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", minWidth: "130px" }}>
+                                    {data.cash > 0 && <span style={{ background: "rgba(251,146,60,0.1)", color: "#FB923C", fontSize: "0.62rem", padding: "2px 6px", borderRadius: "6px", fontWeight: 600 }}>{"💵 ₹" + data.cash}</span>}
+                                    {data.online > 0 && <span style={{ background: "rgba(129,140,248,0.1)", color: "#818CF8", fontSize: "0.62rem", padding: "2px 6px", borderRadius: "6px", fontWeight: 600 }}>{"💳 ₹" + data.online}</span>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Best Selling + Table Revenue */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
+                        <div style={{ background: "#161616", borderRadius: "16px", padding: "20px", border: "1px solid rgba(255,255,255,0.06)" }}>
+                          <div style={{ fontSize: "0.82rem", fontWeight: 700, marginBottom: "16px" }}>{"🏆 Best Selling Items"}</div>
+                          {(() => {
+                            const itemMap = {};
+                            delivered.forEach(o => {
+                              o.items.forEach(item => {
+                                if (!itemMap[item.name]) itemMap[item.name] = { qty: 0, revenue: 0 };
+                                itemMap[item.name].qty += item.qty;
+                                itemMap[item.name].revenue += item.price * item.qty;
+                              });
+                            });
+                            const sorted = Object.entries(itemMap).sort((a, b) => b[1].qty - a[1].qty).slice(0, 6);
+                            const maxQty = Math.max(...sorted.map(i => i[1].qty), 1);
+                            if (sorted.length === 0) return <p style={{ color: "#444", fontSize: "0.82rem", textAlign: "center", padding: "20px" }}>{"No data"}</p>;
+                            return sorted.map(([name, data], idx) => (
+                              <div key={name} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                                <div style={{ width: "20px", height: "20px", background: idx < 3 ? "rgba(255,48,8,0.15)" : "rgba(255,255,255,0.05)", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem", fontWeight: 800, color: idx < 3 ? "#FF3008" : "#555", flexShrink: 0 }}>{idx + 1}</div>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontSize: "0.78rem", fontWeight: 600, marginBottom: "3px" }}>{name}</div>
+                                  <div style={{ height: "4px", background: "rgba(255,255,255,0.06)", borderRadius: "2px" }}>
+                                    <div style={{ height: "100%", width: (data.qty / maxQty * 100) + "%", background: "#FF3008", borderRadius: "2px" }} />
+                                  </div>
+                                </div>
+                                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                                  <div style={{ fontSize: "0.72rem", fontWeight: 700 }}>{data.qty + " sold"}</div>
+                                  <div style={{ fontSize: "0.65rem", color: "#555" }}>{"₹" + data.revenue}</div>
+                                </div>
+                              </div>
+                            ));
+                          })()}
+                        </div>
+
+                        <div style={{ background: "#161616", borderRadius: "16px", padding: "20px", border: "1px solid rgba(255,255,255,0.06)" }}>
+                          <div style={{ fontSize: "0.82rem", fontWeight: 700, marginBottom: "16px" }}>{"🪑 Revenue by Table"}</div>
+                          {(() => {
+                            const tableMap = {};
+                            delivered.forEach(o => {
+                              const t = "Table " + o.tableNumber;
+                              if (!tableMap[t]) tableMap[t] = { orders: 0, revenue: 0 };
+                              tableMap[t].orders++;
+                              tableMap[t].revenue += (o.total || 0);
+                            });
+                            const sorted = Object.entries(tableMap).sort((a, b) => b[1].revenue - a[1].revenue).slice(0, 6);
+                            const maxRev2 = Math.max(...sorted.map(i => i[1].revenue), 1);
+                            if (sorted.length === 0) return <p style={{ color: "#444", fontSize: "0.82rem", textAlign: "center", padding: "20px" }}>{"No data"}</p>;
+                            return sorted.map(([table, data], idx) => (
+                              <div key={table} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                                <div style={{ width: "20px", height: "20px", background: "rgba(255,48,8,0.15)", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.55rem", fontWeight: 800, color: "#FF3008", flexShrink: 0 }}>{idx + 1}</div>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontSize: "0.78rem", fontWeight: 600, marginBottom: "3px" }}>{table}</div>
+                                  <div style={{ height: "4px", background: "rgba(255,255,255,0.06)", borderRadius: "2px" }}>
+                                    <div style={{ height: "100%", width: (data.revenue / maxRev2 * 100) + "%", background: "#818CF8", borderRadius: "2px" }} />
+                                  </div>
+                                </div>
+                                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                                  <div style={{ fontSize: "0.72rem", fontWeight: 700 }}>{"₹" + data.revenue}</div>
+                                  <div style={{ fontSize: "0.65rem", color: "#555" }}>{data.orders + " orders"}</div>
+                                </div>
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* GST Summary */}
+                      <div style={{ background: "#161616", borderRadius: "16px", padding: "20px", border: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div style={{ fontSize: "0.82rem", fontWeight: 700, marginBottom: "16px" }}>{"🧾 GST Summary (for filing)"}</div>
+                        {(() => {
+                          const totalSub = delivered.reduce((s, o) => s + (o.subtotal || o.items.reduce((s2, i) => s2 + i.price * i.qty, 0)), 0);
+                          const totalGSTAmt = delivered.reduce((s, o) => {
+                            const sub = o.subtotal || o.items.reduce((s2, i) => s2 + i.price * i.qty, 0);
+                            return s + (o.gst || Math.round(sub * 0.18));
+                          }, 0);
+                          const cgst = Math.round(totalGSTAmt / 2);
+                          const sgst = totalGSTAmt - cgst;
+                          return (
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
+                              {[
+                                { label: "Taxable Amount", value: "₹" + totalSub, color: "#fff", desc: "Total before tax" },
+                                { label: "CGST (9%)", value: "₹" + cgst, color: "#FFC107", desc: "Central GST" },
+                                { label: "SGST (9%)", value: "₹" + sgst, color: "#FB923C", desc: "State GST" },
+                                { label: "Total GST", value: "₹" + totalGSTAmt, color: "#4ADE80", desc: "CGST + SGST" },
+                              ].map((item) => (
+                                <div key={item.label} style={{ background: "rgba(255,255,255,0.03)", borderRadius: "12px", padding: "14px", border: "1px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
+                                  <div style={{ fontSize: "0.68rem", color: "#555", marginBottom: "6px" }}>{item.label}</div>
+                                  <div style={{ fontSize: "1.3rem", fontWeight: 800, color: item.color }}>{item.value}</div>
+                                  <div style={{ fontSize: "0.65rem", color: "#444", marginTop: "4px" }}>{item.desc}</div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
 
@@ -866,4 +1157,5 @@ function QRCard({ table, url, restaurantName }) {
     </div>
   );
 }
+
 
