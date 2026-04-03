@@ -1,4 +1,4 @@
-﻿// lib/store.js - MongoDB storage
+// lib/store.js - MongoDB storage
 
 async function getDB() {
   const { default: clientPromise } = await import("./mongodb");
@@ -51,6 +51,8 @@ export async function createRestaurant({ name, username, password, tableCount, e
     tableCount: Math.min(Math.max(Number(tableCount) || 10, 1), 100),
     menu: [],
     sections: [],
+    razorpayKeyId: "",
+    razorpayKeySecret: "",
     createdAt: new Date().toISOString(),
   };
   await db.collection("restaurants").insertOne(restaurant);
@@ -59,11 +61,35 @@ export async function createRestaurant({ name, username, password, tableCount, e
 
 export async function updateRestaurant(id, updates) {
   const db = await getDB();
+  const allowedFields = [
+    "name", "tableCount", "razorpayKeyId", "razorpayKeySecret",
+    "currency", "currencySymbol", "country", "taxName", "taxRate", "timezone"
+  ];
   const updateData = {};
-  if (updates.name && updates.name.trim()) updateData.name = updates.name.trim();
-  if (updates.tableCount) updateData.tableCount = Math.min(Math.max(Number(updates.tableCount) || 10, 1), 100);
+  for (const key of allowedFields) {
+    if (updates[key] !== undefined) {
+      if (key === "tableCount") {
+        updateData.tableCount = Math.min(Math.max(Number(updates.tableCount) || 10, 1), 100);
+      } else if (key === "taxRate") {
+        updateData.taxRate = Number(updates.taxRate) || 18;
+      } else if (key === "name") {
+        if (updates.name && updates.name.trim()) updateData.name = updates.name.trim();
+      } else {
+        updateData[key] = updates[key];
+      }
+    }
+  }
   await db.collection("restaurants").updateOne({ id: String(id) }, { $set: updateData });
   return db.collection("restaurants").findOne({ id: String(id) }, { projection: { _id: 0 } });
+}
+
+export async function updateRestaurantPayment(id, razorpayKeyId, razorpayKeySecret) {
+  const db = await getDB();
+  await db.collection("restaurants").updateOne(
+    { id: String(id) },
+    { $set: { razorpayKeyId: razorpayKeyId || "", razorpayKeySecret: razorpayKeySecret || "" } }
+  );
+  return true;
 }
 
 // ── SECTION FUNCTIONS ──
@@ -103,12 +129,10 @@ export async function updateSection(restaurantId, sectionId, newName) {
 
 export async function deleteSection(restaurantId, sectionId) {
   const db = await getDB();
-  // Delete section
   await db.collection("restaurants").updateOne(
     { id: String(restaurantId) },
     { $pull: { sections: { id: Number(sectionId) } } }
   );
-  // Remove sectionId from all menu items in this section
   const restaurant = await db.collection("restaurants").findOne({ id: String(restaurantId) }, { projection: { _id: 0 } });
   if (restaurant) {
     const menu = (restaurant.menu || []).filter((item) => item.sectionId !== Number(sectionId));
@@ -199,7 +223,7 @@ export async function getOrdersByRestaurant(restaurantId, filters = {}) {
   return orders;
 }
 
-export async function createOrder({ restaurantId, tableNumber, items, clientToken, customerName, customerPhone }) {
+export async function createOrder({ restaurantId, tableNumber, items, clientToken, customerName, customerPhone, paymentMethod, paymentId }) {
   const db = await getDB();
   const restaurant = await db.collection("restaurants").findOne({ id: String(restaurantId) });
   if (!restaurant) return { error: "Restaurant not found." };
@@ -232,6 +256,8 @@ export async function createOrder({ restaurantId, tableNumber, items, clientToke
     dateIST,
     customerName: customerName || "",
     customerPhone: customerPhone || "",
+    paymentMethod: paymentMethod || "cash",
+    paymentId: paymentId || null,
   };
   await db.collection("orders").insertOne(order);
   console.log("Order saved:", order.id);
@@ -258,6 +284,8 @@ export async function seedDefaultData() {
     await db.collection("restaurants").insertOne({
       id: "rest_1", name: "Platfo Demo", username: "platfo", password: "1234",
       tableCount: 10,
+      razorpayKeyId: "",
+      razorpayKeySecret: "",
       sections: [
         { id: 1, name: "Starters" },
         { id: 2, name: "Main Course" },
@@ -305,7 +333,10 @@ export async function verifyRestaurant(token) {
   const restaurant = {
     id: "rest_" + (counter.seq || 1), name: pending.name, username: pending.username,
     password: pending.password, email: pending.email, tableCount: pending.tableCount,
-    menu: [], sections: [], createdAt: new Date().toISOString(), verified: true,
+    menu: [], sections: [],
+    razorpayKeyId: "",
+    razorpayKeySecret: "",
+    createdAt: new Date().toISOString(), verified: true,
   };
   await db.collection("restaurants").insertOne(restaurant);
   await db.collection("pending_restaurants").deleteOne({ token });
