@@ -4,6 +4,7 @@ import {
   loginRestaurant,
   createRestaurant,
   updateRestaurant,
+  updateRestaurantPayment,
   addMenuItem,
   updateMenuItem,
   deleteMenuItem,
