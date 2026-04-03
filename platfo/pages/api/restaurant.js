@@ -95,7 +95,7 @@ export default async function handler(req, res) {
     try {
       const r = await getRestaurantById(sanitizeString(req.query.id));
       if (!r) return res.status(404).json({ error: "Restaurant not found." });
-      const { password, _id, ...safe } = r;
+      const { password, _id, razorpayKeySecret, ...safe } = r;
       return res.status(200).json({ restaurant: safe });
     } catch (err) {
       return res.status(500).json({ error: err.message });
@@ -116,6 +116,22 @@ export default async function handler(req, res) {
         tableCount: sanitizeNumber(tableCount),
       });
       if (!updated) return res.status(404).json({ error: "Restaurant not found." });
+      return res.status(200).json({ success: true });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  // ── UPDATE PAYMENT KEYS ──
+  if (req.method === "PATCH" && req.query.action === "updatePayment") {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    const decoded = verifyToken(token);
+    if (!decoded) return res.status(401).json({ error: "Unauthorized." });
+    const { restaurantId, razorpayKeyId, razorpayKeySecret } = req.body;
+    if (!restaurantId) return res.status(400).json({ error: "restaurantId required." });
+    if (decoded.id !== restaurantId) return res.status(403).json({ error: "Forbidden." });
+    try {
+      await updateRestaurantPayment(restaurantId, razorpayKeyId || "", razorpayKeySecret || "");
       return res.status(200).json({ success: true });
     } catch (err) {
       return res.status(500).json({ error: err.message });
