@@ -34,6 +34,7 @@ const getToken = () => {
 const NAV_ITEMS = [
   { id: "orders", icon: "⚡", label: "Orders" },
   { id: "accounts", icon: "📊", label: "Accounts" },
+  { id: "inventory", icon: "📦", label: "Inventory" },
   { id: "menu", icon: "🍽️", label: "Menu" },
   { id: "settings", icon: "⚙️", label: "Settings" },
   { id: "qrcodes", icon: "📱", label: "QR Codes" },
@@ -66,10 +67,18 @@ export default function AdminDashboard() {
   const [paymentSaved, setPaymentSaved] = useState(false);
   const [paymentError, setPaymentError] = useState("");
 
-  // Accounts filter
+  // Accounts
   const [accountDateBtn, setAccountDateBtn] = useState("today");
   const [accountStart, setAccountStart] = useState(getISTDate(0));
   const [accountEnd, setAccountEnd] = useState(getISTDate(0));
+
+  // Inventory
+  const [inventory, setInventory] = useState([]);
+  const [showAddInventory, setShowAddInventory] = useState(false);
+  const [newInventoryItem, setNewInventoryItem] = useState({ name: "", quantity: "", unit: "kg", lowStockAlert: "" });
+  const [editInventoryItem, setEditInventoryItem] = useState(null);
+  const [showLinkRecipe, setShowLinkRecipe] = useState(null);
+  const [inventorySaving, setInventorySaving] = useState(false);
 
   // Section states
   const [showAddSection, setShowAddSection] = useState(false);
@@ -83,10 +92,9 @@ export default function AdminDashboard() {
   const [editItem, setEditItem] = useState(null);
   const [itemError, setItemError] = useState("");
 
-  // Refs for interval
+  // Refs
   const startDateRef = useRef("");
   const endDateRef = useRef("");
-
   useEffect(() => { startDateRef.current = startDate; }, [startDate]);
   useEffect(() => { endDateRef.current = endDate; }, [endDate]);
 
@@ -145,6 +153,21 @@ export default function AdminDashboard() {
       }, 5000);
       return () => clearInterval(interval);
     }
+  }, [restaurantId]);
+
+  const fetchInventory = useCallback(async () => {
+    if (!restaurantId) return;
+    try {
+      const res = await fetch("/api/inventory?restaurantId=" + restaurantId, {
+        headers: { "Authorization": "Bearer " + getToken() }
+      });
+      const data = await res.json();
+      setInventory(data.inventory || []);
+    } catch {}
+  }, [restaurantId]);
+
+  useEffect(() => {
+    if (restaurantId) fetchInventory();
   }, [restaurantId]);
 
   const refreshRestaurant = useCallback(async () => {
@@ -328,7 +351,6 @@ export default function AdminDashboard() {
   const sectionItems = (sId) => menu.filter((item) => item.sectionId === Number(sId));
   const unsectionedItems = menu.filter((item) => !item.sectionId);
 
-  // Accounts filtered orders
   const accountOrders = orders.filter((o) => {
     if (!accountStart && !accountEnd) return true;
     const orderDate = new Date(o.timestamp).toLocaleDateString("en-CA");
@@ -336,6 +358,8 @@ export default function AdminDashboard() {
     if (accountEnd && orderDate > accountEnd) return false;
     return true;
   });
+
+  const lowStockItems = inventory.filter(i => i.quantity <= i.lowStockAlert);
 
   const inputStyle = {
     width: "100%", padding: "11px 14px", borderRadius: "10px",
@@ -355,6 +379,8 @@ export default function AdminDashboard() {
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
         input::placeholder { color: rgba(255,255,255,0.3); }
         input:focus { border-color: rgba(255,48,8,0.5) !important; }
+        select { color: #fff; background: rgba(255,255,255,0.05); }
+        select option { background: #161616; color: #fff; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
@@ -384,6 +410,9 @@ export default function AdminDashboard() {
                 {sidebarOpen && item.label}
                 {item.id === "orders" && counts["New"] > 0 && sidebarOpen && (
                   <span style={{ marginLeft: "auto", background: "#FF3008", color: "#fff", fontSize: "0.65rem", padding: "2px 6px", borderRadius: "6px", fontWeight: 700 }}>{counts["New"]}</span>
+                )}
+                {item.id === "inventory" && lowStockItems.length > 0 && sidebarOpen && (
+                  <span style={{ marginLeft: "auto", background: "#FFC107", color: "#000", fontSize: "0.65rem", padding: "2px 6px", borderRadius: "6px", fontWeight: 700 }}>{"⚠️ " + lowStockItems.length}</span>
                 )}
               </button>
             ))}
@@ -424,6 +453,9 @@ export default function AdminDashboard() {
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
               {newOrderAlert && (
                 <div style={{ background: "rgba(255,48,8,0.15)", border: "1px solid rgba(255,48,8,0.3)", borderRadius: "8px", padding: "6px 12px", fontSize: "0.78rem", color: "#FF3008", fontWeight: 600, animation: "slideDown 0.3s ease" }}>{"🔔 New order!"}</div>
+              )}
+              {lowStockItems.length > 0 && (
+                <div style={{ background: "rgba(255,193,7,0.1)", border: "1px solid rgba(255,193,7,0.3)", borderRadius: "8px", padding: "6px 12px", fontSize: "0.78rem", color: "#FFC107", fontWeight: 600 }}>{"⚠️ " + lowStockItems.length + " low stock"}</div>
               )}
               <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.15)", borderRadius: "8px", padding: "6px 12px" }}>
                 <div style={{ width: "6px", height: "6px", background: "#4ADE80", borderRadius: "50%", animation: "pulse 2s infinite" }} />
@@ -577,22 +609,16 @@ export default function AdminDashboard() {
                         const subtotal = o.subtotal || o.items.reduce((s, i) => s + i.price * i.qty, 0);
                         const gst = o.gst || Math.round(subtotal * 0.18);
                         const total = o.total || subtotal + gst;
-                        return [
-                          new Date(o.timestamp).toLocaleDateString("en-IN"),
-                          o.id, "Table " + o.tableNumber,
-                          o.customerName || "—",
-                          o.items.map(i => i.name + " x" + i.qty).join("; "),
-                          subtotal, gst, total, o.paymentMethod || "cash"
-                        ];
+                        return [new Date(o.timestamp).toLocaleDateString("en-IN"), o.id, "Table " + o.tableNumber, o.customerName || "—", o.items.map(i => i.name + " x" + i.qty).join("; "), subtotal, gst, total, o.paymentMethod || "cash"];
                       })
                     ];
                     const csv = rows.map(r => r.join(",")).join("\n");
                     const blob = new Blob([csv], { type: "text/csv" });
                     const link = document.createElement("a");
                     link.href = URL.createObjectURL(blob);
-                    link.download = restaurant.name + "-accounts-" + accountDateBtn + "-" + new Date().toISOString().split("T")[0] + ".csv";
+                    link.download = restaurant.name + "-accounts-" + new Date().toISOString().split("T")[0] + ".csv";
                     link.click();
-                  }} style={{ background: "#4ADE80", color: "#000", border: "none", padding: "10px 18px", borderRadius: "10px", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", display: "flex", alignItems: "center", gap: "6px" }}>
+                  }} style={{ background: "#4ADE80", color: "#000", border: "none", padding: "10px 18px", borderRadius: "10px", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif" }}>
                     {"⬇️ Export CSV"}
                   </button>
                 </div>
@@ -601,13 +627,7 @@ export default function AdminDashboard() {
                 <div style={{ background: "#161616", borderRadius: "16px", padding: "18px 20px", marginBottom: "20px", border: "1px solid rgba(255,255,255,0.06)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
                     <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                      {[
-                        { key: "today", label: "Today" },
-                        { key: "yesterday", label: "Yesterday" },
-                        { key: "week", label: "This Week" },
-                        { key: "month", label: "This Month" },
-                        { key: "all", label: "All Time" },
-                      ].map((btn) => (
+                      {[{ key: "today", label: "Today" }, { key: "yesterday", label: "Yesterday" }, { key: "week", label: "This Week" }, { key: "month", label: "This Month" }, { key: "all", label: "All Time" }].map((btn) => (
                         <button key={btn.key} onClick={() => {
                           setAccountDateBtn(btn.key);
                           if (btn.key === "today") { const d = getISTDate(0); setAccountStart(d); setAccountEnd(d); }
@@ -633,12 +653,7 @@ export default function AdminDashboard() {
                     <div style={{ width: "6px", height: "6px", background: "#FF3008", borderRadius: "50%" }} />
                     {"Showing: "}
                     <span style={{ color: "#fff", fontWeight: 600 }}>
-                      {accountDateBtn === "today" ? "Today — " + getISTDate(0) :
-                       accountDateBtn === "yesterday" ? "Yesterday — " + getISTDate(-1) :
-                       accountDateBtn === "week" ? "Last 7 days" :
-                       accountDateBtn === "month" ? "This month" :
-                       accountDateBtn === "all" ? "All time" :
-                       (accountStart || "—") + " to " + (accountEnd || "—")}
+                      {accountDateBtn === "today" ? "Today — " + getISTDate(0) : accountDateBtn === "yesterday" ? "Yesterday — " + getISTDate(-1) : accountDateBtn === "week" ? "Last 7 days" : accountDateBtn === "month" ? "This month" : accountDateBtn === "all" ? "All time" : (accountStart || "—") + " to " + (accountEnd || "—")}
                     </span>
                     <span style={{ color: "#444" }}>{"· " + accountOrders.filter(o => o.status === "Delivered").length + " delivered orders"}</span>
                   </div>
@@ -647,18 +662,13 @@ export default function AdminDashboard() {
                 {(() => {
                   const delivered = accountOrders.filter(o => o.status === "Delivered");
                   const totalRev = delivered.reduce((s, o) => s + (o.total || 0), 0);
-                  const totalGST = delivered.reduce((s, o) => {
-                    const sub = o.subtotal || o.items.reduce((s2, i) => s2 + i.price * i.qty, 0);
-                    return s + (o.gst || Math.round(sub * 0.18));
-                  }, 0);
+                  const totalGST = delivered.reduce((s, o) => { const sub = o.subtotal || o.items.reduce((s2, i) => s2 + i.price * i.qty, 0); return s + (o.gst || Math.round(sub * 0.18)); }, 0);
                   const cashOrders = delivered.filter(o => o.paymentMethod !== "online");
                   const onlineOrders = delivered.filter(o => o.paymentMethod === "online");
                   const cashRev = cashOrders.reduce((s, o) => s + (o.total || 0), 0);
                   const onlineRev = onlineOrders.reduce((s, o) => s + (o.total || 0), 0);
-
                   return (
                     <>
-                      {/* Summary Cards */}
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "14px", marginBottom: "20px" }}>
                         {[
                           { label: "Total Revenue", value: "₹" + totalRev, icon: "💰", color: "#4ADE80", sub: delivered.length + " orders delivered" },
@@ -675,7 +685,6 @@ export default function AdminDashboard() {
                         ))}
                       </div>
 
-                      {/* Daily Breakdown */}
                       <div style={{ background: "#161616", borderRadius: "16px", padding: "20px", marginBottom: "20px", border: "1px solid rgba(255,255,255,0.06)" }}>
                         <div style={{ fontSize: "0.82rem", fontWeight: 700, marginBottom: "16px", display: "flex", justifyContent: "space-between" }}>
                           <span>{"📅 Daily Breakdown"}</span>
@@ -728,19 +737,12 @@ export default function AdminDashboard() {
                         })()}
                       </div>
 
-                      {/* Best Selling + Table Revenue */}
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
                         <div style={{ background: "#161616", borderRadius: "16px", padding: "20px", border: "1px solid rgba(255,255,255,0.06)" }}>
                           <div style={{ fontSize: "0.82rem", fontWeight: 700, marginBottom: "16px" }}>{"🏆 Best Selling Items"}</div>
                           {(() => {
                             const itemMap = {};
-                            delivered.forEach(o => {
-                              o.items.forEach(item => {
-                                if (!itemMap[item.name]) itemMap[item.name] = { qty: 0, revenue: 0 };
-                                itemMap[item.name].qty += item.qty;
-                                itemMap[item.name].revenue += item.price * item.qty;
-                              });
-                            });
+                            delivered.forEach(o => { o.items.forEach(item => { if (!itemMap[item.name]) itemMap[item.name] = { qty: 0, revenue: 0 }; itemMap[item.name].qty += item.qty; itemMap[item.name].revenue += item.price * item.qty; }); });
                             const sorted = Object.entries(itemMap).sort((a, b) => b[1].qty - a[1].qty).slice(0, 6);
                             const maxQty = Math.max(...sorted.map(i => i[1].qty), 1);
                             if (sorted.length === 0) return <p style={{ color: "#444", fontSize: "0.82rem", textAlign: "center", padding: "20px" }}>{"No data"}</p>;
@@ -749,9 +751,7 @@ export default function AdminDashboard() {
                                 <div style={{ width: "20px", height: "20px", background: idx < 3 ? "rgba(255,48,8,0.15)" : "rgba(255,255,255,0.05)", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem", fontWeight: 800, color: idx < 3 ? "#FF3008" : "#555", flexShrink: 0 }}>{idx + 1}</div>
                                 <div style={{ flex: 1 }}>
                                   <div style={{ fontSize: "0.78rem", fontWeight: 600, marginBottom: "3px" }}>{name}</div>
-                                  <div style={{ height: "4px", background: "rgba(255,255,255,0.06)", borderRadius: "2px" }}>
-                                    <div style={{ height: "100%", width: (data.qty / maxQty * 100) + "%", background: "#FF3008", borderRadius: "2px" }} />
-                                  </div>
+                                  <div style={{ height: "4px", background: "rgba(255,255,255,0.06)", borderRadius: "2px" }}><div style={{ height: "100%", width: (data.qty / maxQty * 100) + "%", background: "#FF3008", borderRadius: "2px" }} /></div>
                                 </div>
                                 <div style={{ textAlign: "right", flexShrink: 0 }}>
                                   <div style={{ fontSize: "0.72rem", fontWeight: 700 }}>{data.qty + " sold"}</div>
@@ -761,17 +761,11 @@ export default function AdminDashboard() {
                             ));
                           })()}
                         </div>
-
                         <div style={{ background: "#161616", borderRadius: "16px", padding: "20px", border: "1px solid rgba(255,255,255,0.06)" }}>
                           <div style={{ fontSize: "0.82rem", fontWeight: 700, marginBottom: "16px" }}>{"🪑 Revenue by Table"}</div>
                           {(() => {
                             const tableMap = {};
-                            delivered.forEach(o => {
-                              const t = "Table " + o.tableNumber;
-                              if (!tableMap[t]) tableMap[t] = { orders: 0, revenue: 0 };
-                              tableMap[t].orders++;
-                              tableMap[t].revenue += (o.total || 0);
-                            });
+                            delivered.forEach(o => { const t = "Table " + o.tableNumber; if (!tableMap[t]) tableMap[t] = { orders: 0, revenue: 0 }; tableMap[t].orders++; tableMap[t].revenue += (o.total || 0); });
                             const sorted = Object.entries(tableMap).sort((a, b) => b[1].revenue - a[1].revenue).slice(0, 6);
                             const maxRev2 = Math.max(...sorted.map(i => i[1].revenue), 1);
                             if (sorted.length === 0) return <p style={{ color: "#444", fontSize: "0.82rem", textAlign: "center", padding: "20px" }}>{"No data"}</p>;
@@ -780,9 +774,7 @@ export default function AdminDashboard() {
                                 <div style={{ width: "20px", height: "20px", background: "rgba(255,48,8,0.15)", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.55rem", fontWeight: 800, color: "#FF3008", flexShrink: 0 }}>{idx + 1}</div>
                                 <div style={{ flex: 1 }}>
                                   <div style={{ fontSize: "0.78rem", fontWeight: 600, marginBottom: "3px" }}>{table}</div>
-                                  <div style={{ height: "4px", background: "rgba(255,255,255,0.06)", borderRadius: "2px" }}>
-                                    <div style={{ height: "100%", width: (data.revenue / maxRev2 * 100) + "%", background: "#818CF8", borderRadius: "2px" }} />
-                                  </div>
+                                  <div style={{ height: "4px", background: "rgba(255,255,255,0.06)", borderRadius: "2px" }}><div style={{ height: "100%", width: (data.revenue / maxRev2 * 100) + "%", background: "#818CF8", borderRadius: "2px" }} /></div>
                                 </div>
                                 <div style={{ textAlign: "right", flexShrink: 0 }}>
                                   <div style={{ fontSize: "0.72rem", fontWeight: 700 }}>{"₹" + data.revenue}</div>
@@ -794,15 +786,11 @@ export default function AdminDashboard() {
                         </div>
                       </div>
 
-                      {/* GST Summary */}
                       <div style={{ background: "#161616", borderRadius: "16px", padding: "20px", border: "1px solid rgba(255,255,255,0.06)" }}>
                         <div style={{ fontSize: "0.82rem", fontWeight: 700, marginBottom: "16px" }}>{"🧾 GST Summary (for filing)"}</div>
                         {(() => {
                           const totalSub = delivered.reduce((s, o) => s + (o.subtotal || o.items.reduce((s2, i) => s2 + i.price * i.qty, 0)), 0);
-                          const totalGSTAmt = delivered.reduce((s, o) => {
-                            const sub = o.subtotal || o.items.reduce((s2, i) => s2 + i.price * i.qty, 0);
-                            return s + (o.gst || Math.round(sub * 0.18));
-                          }, 0);
+                          const totalGSTAmt = delivered.reduce((s, o) => { const sub = o.subtotal || o.items.reduce((s2, i) => s2 + i.price * i.qty, 0); return s + (o.gst || Math.round(sub * 0.18)); }, 0);
                           const cgst = Math.round(totalGSTAmt / 2);
                           const sgst = totalGSTAmt - cgst;
                           return (
@@ -826,6 +814,191 @@ export default function AdminDashboard() {
                     </>
                   );
                 })()}
+              </div>
+            )}
+
+            {/* INVENTORY TAB */}
+            {tab === "inventory" && (
+              <div className="fade-in">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+                  <div>
+                    <h2 style={{ fontSize: "1.2rem", fontWeight: 800 }}>{"📦 Inventory"}</h2>
+                    <p style={{ color: "#555", fontSize: "0.82rem", marginTop: "4px" }}>{"Track stock levels — auto-deducts when orders are placed"}</p>
+                  </div>
+                  <button onClick={() => setShowAddInventory(true)} style={{ background: "#FF3008", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "10px", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif" }}>{"+ Add Item"}</button>
+                </div>
+
+                {/* Low Stock Alert */}
+                {lowStockItems.length > 0 && (
+                  <div style={{ background: "rgba(255,48,8,0.08)", border: "1px solid rgba(255,48,8,0.25)", borderRadius: "14px", padding: "16px 20px", marginBottom: "20px" }}>
+                    <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#FF3008", marginBottom: "10px" }}>{"⚠️ Low Stock Alert"}</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                      {lowStockItems.map(i => (
+                        <div key={i.id} style={{ background: "rgba(255,48,8,0.15)", color: "#FF3008", padding: "4px 12px", borderRadius: "8px", fontSize: "0.78rem", fontWeight: 600 }}>
+                          {i.name + ": " + i.quantity + " " + i.unit + " left"}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Add Item Form */}
+                {showAddInventory && (
+                  <div style={{ background: "#161616", borderRadius: "14px", padding: "20px", marginBottom: "20px", border: "1px solid rgba(255,48,8,0.3)" }}>
+                    <div style={{ fontSize: "0.85rem", fontWeight: 700, marginBottom: "14px", color: "#FF3008" }}>{"Add Inventory Item"}</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "12px", marginBottom: "14px" }}>
+                      {[
+                        { label: "Item Name *", key: "name", placeholder: "e.g. Tomatoes", type: "text" },
+                        { label: "Quantity *", key: "quantity", placeholder: "e.g. 10", type: "number" },
+                        { label: "Unit", key: "unit", placeholder: "kg, L, pcs...", type: "text" },
+                        { label: "Low Stock Alert", key: "lowStockAlert", placeholder: "e.g. 2", type: "number" },
+                      ].map((f) => (
+                        <div key={f.key}>
+                          <label style={{ fontSize: "0.68rem", color: "#555", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "4px" }}>{f.label}</label>
+                          <input style={inputStyle} type={f.type} placeholder={f.placeholder} value={newInventoryItem[f.key]} onChange={(e) => setNewInventoryItem({ ...newInventoryItem, [f.key]: e.target.value })} />
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button onClick={async () => {
+                        if (!newInventoryItem.name || !newInventoryItem.quantity) return;
+                        setInventorySaving(true);
+                        try {
+                          const res = await fetch("/api/inventory?restaurantId=" + restaurantId + "&action=add", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getToken() },
+                            body: JSON.stringify(newInventoryItem),
+                          });
+                          if (res.ok) { await fetchInventory(); setNewInventoryItem({ name: "", quantity: "", unit: "kg", lowStockAlert: "" }); setShowAddInventory(false); }
+                        } catch {} finally { setInventorySaving(false); }
+                      }} disabled={inventorySaving} style={{ background: "#FF3008", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.85rem" }}>
+                        {inventorySaving ? "Saving..." : "Add Item"}
+                      </button>
+                      <button onClick={() => setShowAddInventory(false)} style={{ background: "rgba(255,255,255,0.06)", color: "#888", border: "none", padding: "10px 20px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.85rem" }}>{"Cancel"}</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Inventory List */}
+                {inventory.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "80px", background: "#161616", borderRadius: "16px", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div style={{ fontSize: "3rem", marginBottom: "12px", opacity: 0.2 }}>{"📦"}</div>
+                    <p style={{ color: "#444", fontWeight: 600 }}>{"No inventory items yet."}</p>
+                    <p style={{ color: "#333", fontSize: "0.82rem", marginTop: "6px" }}>{"Add items and link them to menu items to auto-track stock."}</p>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
+                    {inventory.map((item) => {
+                      const isLow = item.quantity <= item.lowStockAlert;
+                      const pct = Math.min((item.quantity / Math.max(item.lowStockAlert * 5, 1)) * 100, 100);
+                      return (
+                        <div key={item.id} style={{ background: "#161616", borderRadius: "14px", padding: "16px 20px", border: isLow ? "1px solid rgba(255,48,8,0.4)" : "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: "16px" }}>
+                          <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: isLow ? "#FF3008" : item.quantity <= item.lowStockAlert * 2 ? "#FFC107" : "#4ADE80", flexShrink: 0 }} />
+                          <div style={{ flex: 1 }}>
+                            {editInventoryItem?.id === item.id ? (
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "8px", alignItems: "center" }}>
+                                <input style={{ ...inputStyle, marginTop: 0, padding: "7px 10px" }} value={editInventoryItem.name} onChange={(e) => setEditInventoryItem({ ...editInventoryItem, name: e.target.value })} />
+                                <input style={{ ...inputStyle, marginTop: 0, padding: "7px 10px" }} type="number" value={editInventoryItem.quantity} onChange={(e) => setEditInventoryItem({ ...editInventoryItem, quantity: e.target.value })} />
+                                <input style={{ ...inputStyle, marginTop: 0, padding: "7px 10px" }} value={editInventoryItem.unit} onChange={(e) => setEditInventoryItem({ ...editInventoryItem, unit: e.target.value })} />
+                                <input style={{ ...inputStyle, marginTop: 0, padding: "7px 10px" }} type="number" placeholder="Low alert" value={editInventoryItem.lowStockAlert} onChange={(e) => setEditInventoryItem({ ...editInventoryItem, lowStockAlert: e.target.value })} />
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{ fontWeight: 700, fontSize: "0.92rem" }}>{item.name}</div>
+                                <div style={{ marginTop: "8px", height: "6px", background: "rgba(255,255,255,0.06)", borderRadius: "3px", overflow: "hidden" }}>
+                                  <div style={{ height: "100%", width: pct + "%", background: isLow ? "#FF3008" : item.quantity <= item.lowStockAlert * 2 ? "#FFC107" : "#4ADE80", borderRadius: "3px", transition: "width 0.5s ease" }} />
+                                </div>
+                              </>
+                            )}
+                          </div>
+                          {editInventoryItem?.id !== item.id && (
+                            <div style={{ textAlign: "center", minWidth: "80px" }}>
+                              <div style={{ fontSize: "1.2rem", fontWeight: 800, color: isLow ? "#FF3008" : "#fff" }}>{item.quantity}</div>
+                              <div style={{ fontSize: "0.68rem", color: "#555" }}>{item.unit}</div>
+                            </div>
+                          )}
+                          {editInventoryItem?.id !== item.id && (
+                            <div style={{ textAlign: "center", minWidth: "80px" }}>
+                              <div style={{ fontSize: "0.72rem", color: "#444" }}>{"Alert at"}</div>
+                              <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "#666" }}>{item.lowStockAlert + " " + item.unit}</div>
+                            </div>
+                          )}
+                          <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+                            {editInventoryItem?.id === item.id ? (
+                              <>
+                                <button onClick={async () => {
+                                  setInventorySaving(true);
+                                  try {
+                                    await fetch("/api/inventory?restaurantId=" + restaurantId + "&action=update", {
+                                      method: "PATCH",
+                                      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getToken() },
+                                      body: JSON.stringify({ itemId: item.id, ...editInventoryItem }),
+                                    });
+                                    await fetchInventory(); setEditInventoryItem(null);
+                                  } catch {} finally { setInventorySaving(false); }
+                                }} style={{ background: "#FF3008", color: "#fff", border: "none", padding: "7px 14px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.78rem" }}>{"Save"}</button>
+                                <button onClick={() => setEditInventoryItem(null)} style={{ background: "rgba(255,255,255,0.06)", color: "#888", border: "none", padding: "7px 14px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.78rem" }}>{"Cancel"}</button>
+                              </>
+                            ) : (
+                              <>
+                                <button onClick={() => setEditInventoryItem({ ...item })} style={{ background: "rgba(255,255,255,0.06)", border: "none", padding: "7px 12px", borderRadius: "8px", fontWeight: 600, cursor: "pointer", fontSize: "0.72rem", color: "#666", fontFamily: "sans-serif" }}>{"Edit"}</button>
+                                <button onClick={async () => {
+                                  if (!confirm("Delete " + item.name + "?")) return;
+                                  await fetch("/api/inventory?restaurantId=" + restaurantId, {
+                                    method: "DELETE",
+                                    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getToken() },
+                                    body: JSON.stringify({ itemId: item.id }),
+                                  });
+                                  await fetchInventory();
+                                }} style={{ background: "rgba(255,48,8,0.1)", border: "none", color: "#FF3008", padding: "7px 12px", borderRadius: "8px", fontWeight: 600, cursor: "pointer", fontSize: "0.72rem", fontFamily: "sans-serif" }}>{"Del"}</button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Link Recipe Section */}
+                {inventory.length > 0 && menu.length > 0 && (
+                  <div style={{ background: "#161616", borderRadius: "16px", padding: "20px", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div style={{ fontSize: "0.85rem", fontWeight: 700, marginBottom: "6px" }}>{"🔗 Link Inventory to Menu Items"}</div>
+                    <p style={{ fontSize: "0.78rem", color: "#555", marginBottom: "16px" }}>{"Link ingredients to menu items so inventory auto-deducts when orders are placed."}</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {menu.map((menuItem) => (
+                        <div key={menuItem.id} style={{ background: "rgba(255,255,255,0.03)", borderRadius: "10px", padding: "14px 16px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: menuItem.recipe?.length > 0 ? "10px" : "0" }}>
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>{menuItem.name}</div>
+                              {menuItem.recipe?.length > 0 && (
+                                <div style={{ fontSize: "0.72rem", color: "#555", marginTop: "2px" }}>
+                                  {menuItem.recipe.map(r => {
+                                    const inv = inventory.find(i => i.id === r.inventoryId);
+                                    return inv ? inv.name + " (" + r.amount + " " + inv.unit + ")" : "";
+                                  }).filter(Boolean).join(" · ")}
+                                </div>
+                              )}
+                            </div>
+                            <button onClick={() => setShowLinkRecipe(showLinkRecipe === menuItem.id ? null : menuItem.id)} style={{ background: "rgba(255,48,8,0.1)", color: "#FF3008", border: "1px solid rgba(255,48,8,0.2)", padding: "6px 12px", borderRadius: "8px", fontWeight: 600, cursor: "pointer", fontSize: "0.72rem", fontFamily: "sans-serif" }}>
+                              {showLinkRecipe === menuItem.id ? "Close" : menuItem.recipe?.length > 0 ? "Edit Recipe" : "+ Add Recipe"}
+                            </button>
+                          </div>
+                          {showLinkRecipe === menuItem.id && (
+                            <RecipeLinker
+                              menuItem={menuItem}
+                              inventory={inventory}
+                              restaurantId={restaurantId}
+                              getToken={getToken}
+                              onSave={async () => { await refreshRestaurant(); setShowLinkRecipe(null); }}
+                              inputStyle={inputStyle}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -999,7 +1172,6 @@ export default function AdminDashboard() {
                     {settingSaved ? "✓ Saved!" : "Save Changes"}
                   </button>
                 </div>
-
                 <div style={{ background: "#161616", borderRadius: "16px", padding: "24px", border: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", gap: "18px" }}>
                   <div style={{ fontSize: "0.72rem", color: "#818CF8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px" }}>{"💳 Payment Setup (Razorpay)"}</div>
                   <p style={{ fontSize: "0.75rem", color: "#555", lineHeight: 1.6 }}>{"Customers pay directly to your account. Get your keys from "}<a href="https://razorpay.com" target="_blank" rel="noreferrer" style={{ color: "#818CF8" }}>{"razorpay.com"}</a></p>
@@ -1158,4 +1330,48 @@ function QRCard({ table, url, restaurantName }) {
   );
 }
 
+function RecipeLinker({ menuItem, inventory, restaurantId, getToken, onSave, inputStyle }) {
+  const [recipe, setRecipe] = useState(menuItem.recipe || []);
+  const [saving, setSaving] = useState(false);
 
+  const addIngredient = () => setRecipe([...recipe, { inventoryId: "", amount: "" }]);
+  const removeIngredient = (idx) => setRecipe(recipe.filter((_, i) => i !== idx));
+  const updateIngredient = (idx, key, value) => setRecipe(recipe.map((r, i) => i === idx ? { ...r, [key]: value } : r));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const validRecipe = recipe.filter(r => r.inventoryId && r.amount);
+      await fetch("/api/inventory?restaurantId=" + restaurantId + "&action=linkRecipe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getToken() },
+        body: JSON.stringify({ menuItemId: menuItem.id, recipe: validRecipe }),
+      });
+      await onSave();
+    } catch {} finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{ marginTop: "12px", padding: "14px", background: "rgba(255,48,8,0.04)", borderRadius: "10px", border: "1px solid rgba(255,48,8,0.15)" }}>
+      <div style={{ fontSize: "0.78rem", color: "#FF3008", fontWeight: 600, marginBottom: "10px" }}>{"Recipe for " + menuItem.name}</div>
+      {recipe.map((r, idx) => (
+        <div key={idx} style={{ display: "flex", gap: "8px", marginBottom: "8px", alignItems: "center" }}>
+          <select value={r.inventoryId} onChange={(e) => updateIngredient(idx, "inventoryId", e.target.value)}
+            style={{ ...inputStyle, marginTop: 0, flex: 2, padding: "8px 10px", cursor: "pointer" }}>
+            <option value="">Select ingredient</option>
+            {inventory.map(inv => (
+              <option key={inv.id} value={inv.id}>{inv.name + " (" + inv.unit + ")"}</option>
+            ))}
+          </select>
+          <input type="number" placeholder="Amount" value={r.amount} onChange={(e) => updateIngredient(idx, "amount", e.target.value)}
+            style={{ ...inputStyle, marginTop: 0, flex: 1, padding: "8px 10px" }} />
+          <button onClick={() => removeIngredient(idx)} style={{ background: "rgba(255,48,8,0.1)", border: "none", color: "#FF3008", width: "32px", height: "32px", borderRadius: "8px", cursor: "pointer", fontWeight: 700, fontSize: "1rem", fontFamily: "sans-serif", flexShrink: 0 }}>{"×"}</button>
+        </div>
+      ))}
+      <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+        <button onClick={addIngredient} style={{ background: "rgba(255,255,255,0.06)", color: "#888", border: "none", padding: "8px 14px", borderRadius: "8px", fontWeight: 600, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.78rem" }}>{"+ Add Ingredient"}</button>
+        <button onClick={handleSave} disabled={saving} style={{ background: "#FF3008", color: "#fff", border: "none", padding: "8px 16px", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.78rem" }}>{saving ? "Saving..." : "Save Recipe"}</button>
+      </div>
+    </div>
+  );
+}
