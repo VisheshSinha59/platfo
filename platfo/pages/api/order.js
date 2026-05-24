@@ -1,58 +1,88 @@
+      import {
+  createOrder,
+  updateOrderStatus,
+  getOrdersByRestaurant,
+  deductInventory,
+} from "../../lib/store";
+import { verifyToken, sanitizeString, sanitizeNumber } from "../../lib/auth";
+
 export default async function handler(req, res) {
 
-  if (req.method === "POST") {
-    const { restaurantId, tableNumber, items, clientToken, customerName, customerPhone } = req.body;
+  // ── GET ORDERS ──
+  if (req.method === "GET") {
+    const { restaurantId, startDate, endDate } = req.query;
+    if (!restaurantId) return res.status(400).json({ error: "restaurantId required." });
+    try {
+      const orders = await getOrdersByRestaurant(restaurantId, { startDate, endDate });
+      const clean = orders.map(({ _id, ...o }) => o);
+      return res.status(200).json({ orders: clean });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
 
-    if (!restaurantId) return res.status(400).json({ error: "Restaurant ID required." });
-    if (!tableNumber || isNaN(Number(tableNumber))) return res.status(400).json({ error: "Valid table number required." });
-    if (!items || !Array.isArray(items) || items.length === 0) return res.status(400).json({ error: "Items required." });
+  // ── CREATE ORDER ──
+  if (req.method === "POST") {
+    const {
+      restaurantId, tableNumber, items,
+      clientToken, customerName, customerPhone,
+      paymentMethod, paymentId,
+    } = req.body;
+
+    if (!restaurantId || !tableNumber || !items?.length) {
+      return res.status(400).json({ error: "restaurantId, tableNumber and items required." });
+    }
 
     try {
-      const { createOrder } = await import("../../lib/store");
       const result = await createOrder({
-        restaurantId,
-        tableNumber,
+        restaurantId: sanitizeString(restaurantId),
+        tableNumber: sanitizeNumber(tableNumber),
         items,
         clientToken,
-        customerName: customerName || "",
-        customerPhone: customerPhone || "",
+        customerName: sanitizeString(customerName || ""),
+        customerPhone: sanitizeString(customerPhone || ""),
+        paymentMethod: paymentMethod || "cash",
+        paymentId: paymentId || null,
       });
 
-      if (result.duplicate) return res.status(409).json({ error: "Order already placed." });
       if (result.error) return res.status(400).json({ error: result.error });
+      if (result.duplicate) return res.status(409).json({ error: "Duplicate order." });
 
-      console.log("Order saved:", result.order.id, "Customer:", customerName, "Phone:", customerPhone);
+      // ── AUTO DEDUCT INVENTORY ──
+      if (result.order) {
+        try {
+          await deductInventory(restaurantId, items);
+          console.log("Inventory deducted for order:", result.order.id);
+        } catch (invErr) {
+          console.log("Inventory deduction error:", invErr.message);
+        }
+      }
+
       return res.status(201).json({ success: true, order: result.order });
-
     } catch (err) {
       console.error("Order error:", err);
       return res.status(500).json({ error: err.message });
     }
   }
 
-  if (req.method === "GET") {
-    const { restaurantId, startDate, endDate } = req.query;
-    if (!restaurantId) return res.status(400).json({ error: "restaurantId required." });
-    try {
-      const { getOrdersByRestaurant } = await import("../../lib/store");
-      const orders = await getOrdersByRestaurant(restaurantId, { startDate, endDate });
-      return res.status(200).json({ orders });
-    } catch (err) {
-      return res.status(500).json({ error: err.message });
-    }
-  }
-
+  // ── UPDATE ORDER STATUS ──
   if (req.method === "PATCH") {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    const decoded = verifyToken(token);
+    if (!decoded) return res.status(401).json({ error: "Unauthorized." });
+
     const { orderId, status } = req.body;
+    if (!orderId || !status) return res.status(400).json({ error: "orderId and status required." });
+
     const validStatuses = ["New", "Preparing", "Ready", "Delivered"];
-    if (!orderId) return res.status(400).json({ error: "Order ID required." });
-    if (!validStatuses.includes(status)) return res.status(400).json({ error: "Invalid status." });
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: "Invalid status." });
+    }
 
     try {
-      const { updateOrderStatus } = await import("../../lib/store");
-      const updated = await updateOrderStatus(orderId, status);
-      if (!updated) return res.status(404).json({ error: "Order not found." });
-      return res.status(200).json({ success: true, order: updated });
+      const result = await updateOrderStatus(orderId, status);
+      if (!result) return res.status(404).json({ error: "Order not found." });
+      return res.status(200).json({ success: true });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }
