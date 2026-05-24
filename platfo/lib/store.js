@@ -158,6 +158,7 @@ export async function addMenuItem(restaurantId, item) {
     desc: (item.desc || "").trim(),
     tag: (item.tag || "").trim(),
     sectionId: item.sectionId ? Number(item.sectionId) : null,
+    recipe: [],
   };
   await db.collection("restaurants").updateOne(
     { id: String(restaurantId) },
@@ -292,10 +293,10 @@ export async function seedDefaultData() {
         { id: 3, name: "Beverages" },
       ],
       menu: [
-        { id: 1, name: "Burger", price: 120, desc: "Juicy beef patty", tag: "Bestseller", sectionId: 1 },
-        { id: 2, name: "Pizza", price: 250, desc: "Wood-fired toppings", tag: "Chefs Pick", sectionId: 2 },
-        { id: 3, name: "Fries", price: 90, desc: "Crispy golden fries", tag: "", sectionId: 1 },
-        { id: 4, name: "Coke", price: 60, desc: "Ice cold drink", tag: "", sectionId: 3 },
+        { id: 1, name: "Burger", price: 120, desc: "Juicy beef patty", tag: "Bestseller", sectionId: 1, recipe: [] },
+        { id: 2, name: "Pizza", price: 250, desc: "Wood-fired toppings", tag: "Chefs Pick", sectionId: 2, recipe: [] },
+        { id: 3, name: "Fries", price: 90, desc: "Crispy golden fries", tag: "", sectionId: 1, recipe: [] },
+        { id: 4, name: "Coke", price: 60, desc: "Ice cold drink", tag: "", sectionId: 3, recipe: [] },
       ],
       createdAt: new Date().toISOString(),
     });
@@ -341,4 +342,89 @@ export async function verifyRestaurant(token) {
   await db.collection("restaurants").insertOne(restaurant);
   await db.collection("pending_restaurants").deleteOne({ token });
   return { restaurant };
+}
+
+// ── INVENTORY FUNCTIONS ──
+
+export async function getInventory(restaurantId) {
+  const db = await getDB();
+  const inventory = await db.collection("inventory").find({
+    restaurantId: String(restaurantId)
+  }).toArray();
+  return inventory;
+}
+
+export async function addInventoryItem(restaurantId, item) {
+  const db = await getDB();
+  const counter = await db.collection("counters").findOneAndUpdate(
+    { _id: "inventoryId_" + String(restaurantId) },
+    { $inc: { seq: 1 } },
+    { upsert: true, returnDocument: "after" }
+  );
+  const newItem = {
+    id: "inv_" + (counter.seq || 1),
+    restaurantId: String(restaurantId),
+    name: item.name.trim(),
+    quantity: Number(item.quantity) || 0,
+    unit: item.unit || "kg",
+    lowStockAlert: Number(item.lowStockAlert) || 1,
+    createdAt: new Date().toISOString(),
+  };
+  await db.collection("inventory").insertOne(newItem);
+  return newItem;
+}
+
+export async function updateInventoryItem(restaurantId, itemId, updates) {
+  const db = await getDB();
+  const updateData = {};
+  if (updates.name) updateData.name = updates.name.trim();
+  if (updates.quantity !== undefined) updateData.quantity = Number(updates.quantity);
+  if (updates.unit) updateData.unit = updates.unit;
+  if (updates.lowStockAlert !== undefined) updateData.lowStockAlert = Number(updates.lowStockAlert);
+  await db.collection("inventory").updateOne(
+    { id: String(itemId), restaurantId: String(restaurantId) },
+    { $set: updateData }
+  );
+  return true;
+}
+
+export async function deleteInventoryItem(restaurantId, itemId) {
+  const db = await getDB();
+  await db.collection("inventory").deleteOne({
+    id: String(itemId), restaurantId: String(restaurantId)
+  });
+  return true;
+}
+
+export async function deductInventory(restaurantId, items) {
+  const db = await getDB();
+  const restaurant = await db.collection("restaurants").findOne({ id: String(restaurantId) });
+  if (!restaurant) return;
+  const menu = restaurant.menu || [];
+  for (const orderItem of items) {
+    const menuItem = menu.find(m => m.id === Number(orderItem.id));
+    if (!menuItem || !menuItem.recipe || menuItem.recipe.length === 0) continue;
+    for (const ingredient of menuItem.recipe) {
+      const deductAmount = Number(ingredient.amount) * Number(orderItem.qty);
+      await db.collection("inventory").updateOne(
+        { id: String(ingredient.inventoryId), restaurantId: String(restaurantId) },
+        { $inc: { quantity: -deductAmount } }
+      );
+    }
+  }
+}
+
+export async function linkRecipeToMenuItem(restaurantId, menuItemId, recipe) {
+  const db = await getDB();
+  const restaurant = await db.collection("restaurants").findOne({ id: String(restaurantId) });
+  if (!restaurant) return null;
+  const menu = restaurant.menu || [];
+  const idx = menu.findIndex(m => m.id === Number(menuItemId));
+  if (idx === -1) return null;
+  menu[idx].recipe = recipe;
+  await db.collection("restaurants").updateOne(
+    { id: String(restaurantId) },
+    { $set: { menu } }
+  );
+  return menu[idx];
 }
