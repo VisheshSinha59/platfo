@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 
@@ -17,6 +17,15 @@ export default function Menu() {
   const [activeSection, setActiveSection] = useState(null);
   const [showCart, setShowCart] = useState(false);
 
+  // Chat states
+  const [showChat, setShowChat] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatStarted, setChatStarted] = useState(false);
+  const chatEndRef = useRef(null);
+  const chatInputRef = useRef(null);
+
   useEffect(() => {
     if (!restaurantId) return;
     fetch("/api/restaurant?id=" + restaurantId)
@@ -32,6 +41,53 @@ export default function Menu() {
       })
       .catch(() => setLoading(false));
   }, [restaurantId]);
+
+  useEffect(() => {
+    if (showChat && !chatStarted && restaurant) {
+      setChatStarted(true);
+      setChatMessages([{
+        role: "assistant",
+        content: "👋 Hi! I'm your AI assistant for " + restaurant.name + ". I can help you with menu questions, recommendations, or anything about our food. What would you like to know?",
+      }]);
+    }
+  }, [showChat, restaurant]);
+
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages]);
+
+  const sendMessage = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+    const userMessage = chatInput.trim();
+    setChatInput("");
+    const newMessages = [...chatMessages, { role: "user", content: userMessage }];
+    setChatMessages(newMessages);
+    setChatLoading(true);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: newMessages,
+          restaurant: {
+            name: restaurant.name,
+            menu: restaurant.menu || [],
+            sections: restaurant.sections || [],
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.reply) {
+        setChatMessages([...newMessages, { role: "assistant", content: data.reply }]);
+      }
+    } catch {
+      setChatMessages([...newMessages, { role: "assistant", content: "Sorry, I'm having trouble connecting. Please try again!" }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
 
   const addToCart = (item) => {
     setCart((prev) => {
@@ -62,7 +118,8 @@ export default function Menu() {
 
   const handleOrder = async (paymentMethod = "cash", paymentId = null) => {
     if (!customerName.trim()) { setError("Please enter your name."); return; }
-    if (!customerPhone.trim() || customerPhone.length < 10) { setError("Please enter a valid 10-digit phone number."); return; }
+    if (!customerPhone.trim() || customerPhone.length < 5) { setError("Please enter a valid phone number."); return; }
+    if (ordering) return;
     setOrdering(true); setError("");
     try {
       const clientToken = Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -85,8 +142,9 @@ export default function Menu() {
 
   const handleRazorpayPayment = async () => {
     if (!customerName.trim()) { setError("Please enter your name."); return; }
-    if (!customerPhone.trim() || customerPhone.length < 10) { setError("Please enter a valid phone number."); return; }
-    setError("");
+    if (!customerPhone.trim() || customerPhone.length < 5) { setError("Please enter a valid phone number."); return; }
+    if (ordering) return;
+    setOrdering(true); setError("");
     try {
       const res = await fetch("/api/payment", {
         method: "POST",
@@ -94,8 +152,7 @@ export default function Menu() {
         body: JSON.stringify({ restaurantId, amount: total }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "Payment setup failed."); return; }
-
+      if (!res.ok) { setError(data.error || "Payment setup failed."); setOrdering(false); return; }
       if (!window.Razorpay) {
         await new Promise((resolve) => {
           const script = document.createElement("script");
@@ -104,7 +161,6 @@ export default function Menu() {
           document.body.appendChild(script);
         });
       }
-
       const options = {
         key: data.keyId,
         amount: data.order.amount,
@@ -130,6 +186,7 @@ export default function Menu() {
             await handleOrder("online", response.razorpay_payment_id);
           } else {
             setError("Payment verification failed. Please try again.");
+            setOrdering(false);
           }
         },
         modal: { ondismiss: () => { setError("Payment cancelled."); setOrdering(false); } }
@@ -196,6 +253,14 @@ export default function Menu() {
   const unsectionedItems = menuItems.filter((item) => !item.sectionId);
   const allItems = activeSection === "all" ? menuItems : activeSection === "other" ? unsectionedItems : getItemsForSection(activeSection);
 
+  // Quick suggestions for chat
+  const suggestions = [
+    "What's popular here?",
+    "I'm vegetarian, what can I eat?",
+    "Recommend something under ₹200",
+    "What's spicy on the menu?",
+  ];
+
   const ItemCard = ({ item }) => {
     const qty = getQty(item.id);
     return (
@@ -234,9 +299,12 @@ export default function Menu() {
         @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+        @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
         ::-webkit-scrollbar { width: 0; height: 0; }
         input::placeholder { color: rgba(255,255,255,0.3); }
         input:focus { outline: none; border-color: rgba(255,48,8,0.5) !important; }
+        .chat-btn:hover { transform: scale(1.05); }
+        .send-btn:hover { background: #cc2600 !important; }
       `}</style>
 
       <div style={{ minHeight: "100vh", background: "#0A0A0A", fontFamily: "sans-serif", color: "#fff", paddingBottom: "100px" }}>
@@ -251,12 +319,18 @@ export default function Menu() {
                 <span style={{ color: "#555", fontSize: "0.75rem" }}>{"Table " + table + " · Open for orders"}</span>
               </div>
             </div>
-            {cart.length > 0 && (
-              <button onClick={() => setShowCart(true)} style={{ background: "#FF3008", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 4px 14px rgba(255,48,8,0.3)" }}>
-                {"🛒 " + totalItems}
-                <span style={{ background: "rgba(255,255,255,0.2)", padding: "2px 8px", borderRadius: "6px" }}>{"₹" + total}</span>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              {/* AI Chat Button */}
+              <button onClick={() => setShowChat(true)} className="chat-btn" style={{ background: "linear-gradient(135deg, #667eea, #764ba2)", color: "#fff", border: "none", padding: "9px 14px", borderRadius: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.82rem", display: "flex", alignItems: "center", gap: "6px", transition: "transform 0.2s", boxShadow: "0 4px 14px rgba(102,126,234,0.4)" }}>
+                {"🤖 Ask AI"}
               </button>
-            )}
+              {cart.length > 0 && (
+                <button onClick={() => setShowCart(true)} style={{ background: "#FF3008", color: "#fff", border: "none", padding: "10px 16px", borderRadius: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 4px 14px rgba(255,48,8,0.3)" }}>
+                  {"🛒 " + totalItems}
+                  <span style={{ background: "rgba(255,255,255,0.2)", padding: "2px 8px", borderRadius: "6px" }}>{"₹" + total}</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -310,6 +384,93 @@ export default function Menu() {
           )}
         </div>
 
+        {/* AI CHAT DRAWER */}
+        {showChat && (
+          <>
+            <div onClick={() => setShowChat(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 30, backdropFilter: "blur(4px)" }} />
+            <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#161616", borderRadius: "24px 24px 0 0", zIndex: 40, height: "85vh", display: "flex", flexDirection: "column", animation: "slideUp 0.3s ease", border: "1px solid rgba(255,255,255,0.08)" }}>
+
+              {/* Chat Header */}
+              <div style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div style={{ width: "38px", height: "38px", background: "linear-gradient(135deg, #667eea, #764ba2)", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem" }}>{"🤖"}</div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>{"AI Menu Assistant"}</div>
+                    <div style={{ fontSize: "0.72rem", color: "#4ADE80", display: "flex", alignItems: "center", gap: "4px" }}>
+                      <div style={{ width: "5px", height: "5px", background: "#4ADE80", borderRadius: "50%", animation: "pulse 2s infinite" }} />
+                      {"Online · Powered by Claude AI"}
+                    </div>
+                  </div>
+                </div>
+                <button onClick={() => setShowChat(false)} style={{ background: "rgba(255,255,255,0.06)", border: "none", color: "#888", width: "32px", height: "32px", borderRadius: "8px", cursor: "pointer", fontSize: "1rem" }}>{"×"}</button>
+              </div>
+
+              {/* Chat Messages */}
+              <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                {chatMessages.map((msg, idx) => (
+                  <div key={idx} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", animation: "fadeIn 0.3s ease" }}>
+                    {msg.role === "assistant" && (
+                      <div style={{ width: "28px", height: "28px", background: "linear-gradient(135deg, #667eea, #764ba2)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.85rem", flexShrink: 0, marginRight: "8px", marginTop: "2px" }}>{"🤖"}</div>
+                    )}
+                    <div style={{
+                      maxWidth: "80%", padding: "12px 16px", borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                      background: msg.role === "user" ? "#FF3008" : "rgba(255,255,255,0.06)",
+                      color: "#fff", fontSize: "0.88rem", lineHeight: 1.5, fontWeight: msg.role === "user" ? 600 : 400,
+                    }}>
+                      {msg.content}
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div style={{ display: "flex", justifyContent: "flex-start", animation: "fadeIn 0.3s ease" }}>
+                    <div style={{ width: "28px", height: "28px", background: "linear-gradient(135deg, #667eea, #764ba2)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.85rem", flexShrink: 0, marginRight: "8px" }}>{"🤖"}</div>
+                    <div style={{ background: "rgba(255,255,255,0.06)", padding: "14px 18px", borderRadius: "18px 18px 18px 4px", display: "flex", gap: "4px", alignItems: "center" }}>
+                      {[0, 1, 2].map(i => (
+                        <div key={i} style={{ width: "6px", height: "6px", background: "#667eea", borderRadius: "50%", animation: "bounce 1s infinite", animationDelay: i * 0.2 + "s" }} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Quick Suggestions */}
+              {chatMessages.length <= 1 && (
+                <div style={{ padding: "0 20px 12px", flexShrink: 0 }}>
+                  <div style={{ fontSize: "0.72rem", color: "#555", marginBottom: "8px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>{"Quick Questions"}</div>
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                    {suggestions.map((s, idx) => (
+                      <button key={idx} onClick={() => { setChatInput(s); setTimeout(() => sendMessage(), 100); setChatInput(s); }}
+                        style={{ background: "rgba(102,126,234,0.1)", color: "#667eea", border: "1px solid rgba(102,126,234,0.2)", padding: "6px 12px", borderRadius: "100px", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", fontFamily: "sans-serif" }}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Chat Input */}
+              <div style={{ padding: "12px 20px 20px", borderTop: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+                <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                  <input
+                    ref={chatInputRef}
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                    placeholder="Ask about our menu..."
+                    style={{ flex: 1, padding: "13px 16px", borderRadius: "14px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: "0.92rem", outline: "none", fontFamily: "sans-serif" }}
+                  />
+                  <button onClick={sendMessage} disabled={chatLoading || !chatInput.trim()} className="send-btn"
+                    style={{ width: "46px", height: "46px", background: chatLoading || !chatInput.trim() ? "rgba(255,255,255,0.06)" : "linear-gradient(135deg, #667eea, #764ba2)", color: chatLoading || !chatInput.trim() ? "#444" : "#fff", border: "none", borderRadius: "12px", cursor: chatLoading || !chatInput.trim() ? "not-allowed" : "pointer", fontSize: "1.2rem", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.2s" }}>
+                    {"↑"}
+                  </button>
+                </div>
+                <div style={{ fontSize: "0.65rem", color: "#333", textAlign: "center", marginTop: "8px" }}>{"Powered by Claude AI · Answers based on this restaurant's menu"}</div>
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Cart Drawer */}
         {showCart && (
           <>
@@ -347,7 +508,6 @@ export default function Menu() {
                     <span>{"Total"}</span><span style={{ color: "#FF3008" }}>{"₹" + total}</span>
                   </div>
                 </div>
-
                 {!showCustomerForm ? (
                   <button onClick={() => setShowCustomerForm(true)} style={{ width: "100%", background: "#FF3008", color: "#fff", border: "none", padding: "16px", borderRadius: "14px", fontSize: "1rem", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", boxShadow: "0 4px 20px rgba(255,48,8,0.4)" }}>
                     {"Proceed to Order →"}
@@ -380,7 +540,7 @@ export default function Menu() {
         )}
 
         {/* Sticky Cart Button */}
-        {cart.length > 0 && !showCart && (
+        {cart.length > 0 && !showCart && !showChat && (
           <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: "16px 20px", background: "rgba(10,10,10,0.95)", backdropFilter: "blur(20px)", borderTop: "1px solid rgba(255,255,255,0.06)", zIndex: 20 }}>
             <div style={{ maxWidth: "640px", margin: "0 auto" }}>
               <button onClick={() => setShowCart(true)} style={{ width: "100%", background: "#FF3008", color: "#fff", border: "none", padding: "16px", borderRadius: "14px", fontSize: "1rem", fontWeight: 700, cursor: "pointer", fontFamily: "sans-serif", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 4px 20px rgba(255,48,8,0.4)" }}>
