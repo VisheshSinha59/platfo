@@ -1,16 +1,17 @@
+ JS
 // lib/store.js - MongoDB storage
-
+ 
 async function getDB() {
   const { default: clientPromise } = await import("./mongodb");
   const client = await clientPromise;
   return client.db("restaurant");
 }
-
+ 
 export async function getAllRestaurants() {
   const db = await getDB();
   return await db.collection("restaurants").find({}).toArray();
 }
-
+ 
 export async function getRestaurantById(id) {
   const db = await getDB();
   const restaurant = await db.collection("restaurants").findOne(
@@ -19,7 +20,7 @@ export async function getRestaurantById(id) {
   );
   return restaurant;
 }
-
+ 
 export async function loginRestaurant(username, password) {
   if (!username || !password) return null;
   const db = await getDB();
@@ -31,7 +32,7 @@ export async function loginRestaurant(username, password) {
   console.log("loginRestaurant:", trimmed, "->", restaurant ? restaurant.name : "NOT FOUND");
   return restaurant;
 }
-
+ 
 export async function createRestaurant({ name, username, password, tableCount, email }) {
   if (!name || !username || !password) return { error: "All fields are required." };
   const db = await getDB();
@@ -58,7 +59,7 @@ export async function createRestaurant({ name, username, password, tableCount, e
   await db.collection("restaurants").insertOne(restaurant);
   return { restaurant };
 }
-
+ 
 export async function updateRestaurant(id, updates) {
   const db = await getDB();
   const allowedFields = [
@@ -82,7 +83,7 @@ export async function updateRestaurant(id, updates) {
   await db.collection("restaurants").updateOne({ id: String(id) }, { $set: updateData });
   return db.collection("restaurants").findOne({ id: String(id) }, { projection: { _id: 0 } });
 }
-
+ 
 export async function updateRestaurantPayment(id, razorpayKeyId, razorpayKeySecret) {
   const db = await getDB();
   await db.collection("restaurants").updateOne(
@@ -91,9 +92,9 @@ export async function updateRestaurantPayment(id, razorpayKeyId, razorpayKeySecr
   );
   return true;
 }
-
-// ── SECTION FUNCTIONS ──
-
+ 
+// —— SECTION FUNCTIONS ——
+ 
 export async function addSection(restaurantId, sectionName) {
   if (!sectionName) return null;
   const db = await getDB();
@@ -111,10 +112,9 @@ export async function addSection(restaurantId, sectionName) {
     { id: String(restaurantId) },
     { $push: { sections: section } }
   );
-  console.log("Section added:", section.name, "to:", restaurantId);
   return section;
 }
-
+ 
 export async function updateSection(restaurantId, sectionId, newName) {
   const db = await getDB();
   const restaurant = await db.collection("restaurants").findOne({ id: String(restaurantId) }, { projection: { _id: 0 } });
@@ -126,7 +126,7 @@ export async function updateSection(restaurantId, sectionId, newName) {
   await db.collection("restaurants").updateOne({ id: String(restaurantId) }, { $set: { sections } });
   return sections[idx];
 }
-
+ 
 export async function deleteSection(restaurantId, sectionId) {
   const db = await getDB();
   await db.collection("restaurants").updateOne(
@@ -140,9 +140,9 @@ export async function deleteSection(restaurantId, sectionId) {
   }
   return true;
 }
-
-// ── MENU FUNCTIONS ──
-
+ 
+// —— MENU FUNCTIONS ——
+ 
 export async function addMenuItem(restaurantId, item) {
   if (!item.name || !item.price) return null;
   const db = await getDB();
@@ -166,7 +166,7 @@ export async function addMenuItem(restaurantId, item) {
   );
   return newItem;
 }
-
+ 
 export async function updateMenuItem(restaurantId, itemId, updates) {
   const db = await getDB();
   const restaurant = await db.collection("restaurants").findOne({ id: String(restaurantId) }, { projection: { _id: 0 } });
@@ -182,7 +182,7 @@ export async function updateMenuItem(restaurantId, itemId, updates) {
   await db.collection("restaurants").updateOne({ id: String(restaurantId) }, { $set: { menu } });
   return menu[itemIndex];
 }
-
+ 
 export async function deleteMenuItem(restaurantId, itemId) {
   const db = await getDB();
   const result = await db.collection("restaurants").updateOne(
@@ -191,9 +191,9 @@ export async function deleteMenuItem(restaurantId, itemId) {
   );
   return result.modifiedCount > 0;
 }
-
-// ── ORDER FUNCTIONS ──
-
+ 
+// —— ORDER FUNCTIONS ——
+ 
 export async function getOrdersByRestaurant(restaurantId, filters = {}) {
   const db = await getDB();
   const query = { restaurantId: String(restaurantId) };
@@ -220,10 +220,9 @@ export async function getOrdersByRestaurant(restaurantId, filters = {}) {
     }
   }
   const orders = await db.collection("orders").find(query).sort({ timestamp: -1 }).toArray();
-  console.log("Found orders:", orders.length);
   return orders;
 }
-
+ 
 export async function createOrder({ restaurantId, tableNumber, items, clientToken, customerName, customerPhone, paymentMethod, paymentId }) {
   const db = await getDB();
   const restaurant = await db.collection("restaurants").findOne({ id: String(restaurantId) });
@@ -233,7 +232,8 @@ export async function createOrder({ restaurantId, tableNumber, items, clientToke
     if (existing) return { duplicate: true };
   }
   const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
-  const gst = Math.round(subtotal * 0.18);
+  const taxRate = restaurant.taxRate ?? 18;
+  const gst = Math.round(subtotal * taxRate / 100);
   const total = subtotal + gst;
   const now = new Date();
   const istOffset = 5.5 * 60 * 60 * 1000;
@@ -263,11 +263,15 @@ export async function createOrder({ restaurantId, tableNumber, items, clientToke
   await db.collection("orders").insertOne(order);
   console.log("Order saved:", order.id);
   if (clientToken) {
-    await db.collection("tokens").insertOne({ token: clientToken, createdAt: new Date(), expireAt: new Date(Date.now() + 24 * 60 * 60 * 1000) });
+    await db.collection("tokens").insertOne({
+      token: clientToken,
+      createdAt: new Date(),
+      expireAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+    });
   }
   return { order };
 }
-
+ 
 export async function updateOrderStatus(orderId, status) {
   const db = await getDB();
   const result = await db.collection("orders").findOneAndUpdate(
@@ -277,7 +281,7 @@ export async function updateOrderStatus(orderId, status) {
   );
   return result;
 }
-
+ 
 export async function seedDefaultData() {
   const db = await getDB();
   const existing = await db.collection("restaurants").findOne({ id: "rest_1" });
@@ -302,7 +306,7 @@ export async function seedDefaultData() {
     });
   }
 }
-
+ 
 export async function createPendingRestaurant({ name, username, password, email, tableCount }) {
   const db = await getDB();
   const existingUsername = await db.collection("restaurants").findOne({ username: username.trim().toLowerCase() });
@@ -319,7 +323,7 @@ export async function createPendingRestaurant({ name, username, password, email,
   await db.collection("pending_restaurants").insertOne(pending);
   return { pending };
 }
-
+ 
 export async function verifyRestaurant(token) {
   const db = await getDB();
   const pending = await db.collection("pending_restaurants").findOne({ token });
@@ -343,17 +347,16 @@ export async function verifyRestaurant(token) {
   await db.collection("pending_restaurants").deleteOne({ token });
   return { restaurant };
 }
-
-// ── INVENTORY FUNCTIONS ──
-
+ 
+// —— INVENTORY FUNCTIONS ——
+ 
 export async function getInventory(restaurantId) {
   const db = await getDB();
-  const inventory = await db.collection("inventory").find({
-    restaurantId: String(restaurantId)
-  }).toArray();
-  return inventory;
+  return await db.collection("inventory")
+    .find({ restaurantId: String(restaurantId) })
+    .toArray();
 }
-
+ 
 export async function addInventoryItem(restaurantId, item) {
   const db = await getDB();
   const counter = await db.collection("counters").findOneAndUpdate(
@@ -373,7 +376,7 @@ export async function addInventoryItem(restaurantId, item) {
   await db.collection("inventory").insertOne(newItem);
   return newItem;
 }
-
+ 
 export async function updateInventoryItem(restaurantId, itemId, updates) {
   const db = await getDB();
   const updateData = {};
@@ -387,7 +390,7 @@ export async function updateInventoryItem(restaurantId, itemId, updates) {
   );
   return true;
 }
-
+ 
 export async function deleteInventoryItem(restaurantId, itemId) {
   const db = await getDB();
   await db.collection("inventory").deleteOne({
@@ -395,25 +398,37 @@ export async function deleteInventoryItem(restaurantId, itemId) {
   });
   return true;
 }
-
+ 
 export async function deductInventory(restaurantId, items) {
   const db = await getDB();
   const restaurant = await db.collection("restaurants").findOne({ id: String(restaurantId) });
   if (!restaurant) return;
   const menu = restaurant.menu || [];
+ 
+  // Calculate all deductions first
+  const deductions = {};
   for (const orderItem of items) {
     const menuItem = menu.find(m => m.id === Number(orderItem.id));
-    if (!menuItem || !menuItem.recipe || menuItem.recipe.length === 0) continue;
+    if (!menuItem?.recipe?.length) continue;
     for (const ingredient of menuItem.recipe) {
-      const deductAmount = Number(ingredient.amount) * Number(orderItem.qty);
-      await db.collection("inventory").updateOne(
-        { id: String(ingredient.inventoryId), restaurantId: String(restaurantId) },
-        { $inc: { quantity: -deductAmount } }
-      );
+      const amount = Number(ingredient.amount) * Number(orderItem.qty);
+      if (!deductions[ingredient.inventoryId]) deductions[ingredient.inventoryId] = 0;
+      deductions[ingredient.inventoryId] += amount;
     }
   }
+ 
+  // Single bulkWrite — much faster than multiple individual updates
+  if (Object.keys(deductions).length === 0) return;
+  const bulkOps = Object.entries(deductions).map(([invId, amount]) => ({
+    updateOne: {
+      filter: { restaurantId: String(restaurantId), id: String(invId) },
+      update: { $inc: { quantity: -amount } }
+    }
+  }));
+  await db.collection("inventory").bulkWrite(bulkOps);
+  console.log("Inventory deducted:", deductions);
 }
-
+ 
 export async function linkRecipeToMenuItem(restaurantId, menuItemId, recipe) {
   const db = await getDB();
   const restaurant = await db.collection("restaurants").findOne({ id: String(restaurantId) });
@@ -421,7 +436,11 @@ export async function linkRecipeToMenuItem(restaurantId, menuItemId, recipe) {
   const menu = restaurant.menu || [];
   const idx = menu.findIndex(m => m.id === Number(menuItemId));
   if (idx === -1) return null;
-  menu[idx].recipe = recipe;
+  // Fix: ensure amount is always a Number
+  menu[idx].recipe = recipe.map(r => ({
+    inventoryId: String(r.inventoryId),
+    amount: Number(r.amount),
+  }));
   await db.collection("restaurants").updateOne(
     { id: String(restaurantId) },
     { $set: { menu } }
