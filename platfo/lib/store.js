@@ -1,5 +1,4 @@
- JS
-// lib/store.js - MongoDB storage
+ // lib/store.js - MongoDB storage
  
 async function getDB() {
   const { default: clientPromise } = await import("./mongodb");
