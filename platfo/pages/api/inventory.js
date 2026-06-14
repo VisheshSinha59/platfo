@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   if (!restaurantId) return res.status(400).json({ error: "restaurantId required." });
   if (decoded.id !== restaurantId) return res.status(403).json({ error: "Forbidden." });
 
-  // ── GET INVENTORY ──
+  // —— GET INVENTORY ——
   if (req.method === "GET") {
     try {
       const inventory = await getInventory(restaurantId);
@@ -26,31 +26,41 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── ADD ITEM ──
+  // —— ADD ITEM ——
   if (req.method === "POST" && req.query.action === "add") {
     const { name, quantity, unit, lowStockAlert } = req.body;
     if (!name) return res.status(400).json({ error: "Name required." });
     try {
-      const item = await addInventoryItem(restaurantId, { name, quantity, unit, lowStockAlert });
+      const item = await addInventoryItem(restaurantId, {
+        name,
+        quantity: Number(quantity) || 0,
+        unit: unit || "kg",
+        lowStockAlert: Number(lowStockAlert) || 1,
+      });
       return res.status(201).json({ success: true, item });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }
   }
 
-  // ── UPDATE ITEM ──
+  // —— UPDATE ITEM ——
   if (req.method === "PATCH" && req.query.action === "update") {
     const { itemId, name, quantity, unit, lowStockAlert } = req.body;
     if (!itemId) return res.status(400).json({ error: "itemId required." });
     try {
-      await updateInventoryItem(restaurantId, itemId, { name, quantity, unit, lowStockAlert });
+      await updateInventoryItem(restaurantId, itemId, {
+        name,
+        quantity: Number(quantity),
+        unit,
+        lowStockAlert: Number(lowStockAlert),
+      });
       return res.status(200).json({ success: true });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }
   }
 
-  // ── DELETE ITEM ──
+  // —— DELETE ITEM ——
   if (req.method === "DELETE") {
     const { itemId } = req.body;
     if (!itemId) return res.status(400).json({ error: "itemId required." });
@@ -62,12 +72,18 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── LINK RECIPE TO MENU ITEM ──
+  // —— LINK RECIPE TO MENU ITEM —— (BUG FIXED: amount now Number)
   if (req.method === "POST" && req.query.action === "linkRecipe") {
     const { menuItemId, recipe } = req.body;
     if (!menuItemId || !recipe) return res.status(400).json({ error: "menuItemId and recipe required." });
     try {
-      await linkRecipeToMenuItem(restaurantId, menuItemId, recipe);
+      const cleanRecipe = recipe
+        .filter(r => r.inventoryId && r.amount)
+        .map(r => ({
+          inventoryId: String(r.inventoryId),
+          amount: Number(r.amount),
+        }));
+      await linkRecipeToMenuItem(restaurantId, menuItemId, cleanRecipe);
       return res.status(200).json({ success: true });
     } catch (err) {
       return res.status(500).json({ error: err.message });
