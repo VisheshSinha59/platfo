@@ -1,4 +1,4 @@
-      import {
+import {
   createOrder,
   updateOrderStatus,
   getOrdersByRestaurant,
@@ -8,7 +8,7 @@ import { verifyToken, sanitizeString, sanitizeNumber } from "../../lib/auth";
 
 export default async function handler(req, res) {
 
-  // ── GET ORDERS ──
+  // —— GET ORDERS ——
   if (req.method === "GET") {
     const { restaurantId, startDate, endDate } = req.query;
     if (!restaurantId) return res.status(400).json({ error: "restaurantId required." });
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── CREATE ORDER ──
+  // —— CREATE ORDER ——
   if (req.method === "POST") {
     const {
       restaurantId, tableNumber, items,
@@ -34,7 +34,8 @@ export default async function handler(req, res) {
     }
 
     try {
-      const result = await createOrder({
+      // Run order creation and inventory deduction in PARALLEL for speed
+      const orderPromise = createOrder({
         restaurantId: sanitizeString(restaurantId),
         tableNumber: sanitizeNumber(tableNumber),
         items,
@@ -45,19 +46,20 @@ export default async function handler(req, res) {
         paymentId: paymentId || null,
       });
 
+      const deductPromise = deductInventory(restaurantId, items).catch((err) => {
+        console.log("Inventory deduction error:", err.message);
+      });
+
+      // Wait for order first (required), deduction runs in background
+      const result = await orderPromise;
+
       if (result.error) return res.status(400).json({ error: result.error });
       if (result.duplicate) return res.status(409).json({ error: "Duplicate order." });
 
-      // ── AUTO DEDUCT INVENTORY ──
-      if (result.order) {
-        try {
-          await deductInventory(restaurantId, items);
-          console.log("Inventory deducted for order:", result.order.id);
-        } catch (invErr) {
-          console.log("Inventory deduction error:", invErr.message);
-        }
-      }
+      // Also await deduction (already running in parallel)
+      await deductPromise;
 
+      console.log("Order + inventory deduction complete:", result.order?.id);
       return res.status(201).json({ success: true, order: result.order });
     } catch (err) {
       console.error("Order error:", err);
@@ -65,7 +67,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── UPDATE ORDER STATUS ──
+  // —— UPDATE ORDER STATUS ——
   if (req.method === "PATCH") {
     const token = req.headers.authorization?.replace("Bearer ", "");
     const decoded = verifyToken(token);
